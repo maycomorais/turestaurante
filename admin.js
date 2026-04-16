@@ -210,6 +210,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // =========================================
 function showTab(tabId, event) {
   console.log("Tentando abrir aba:", tabId);
+  console.log("Event:", event);
 
   // 1. O 'de-para' para garantir que IDs como 'categorias' ou 'motoboys'
   // abram a aba pai correta no seu novo HTML
@@ -220,8 +221,11 @@ function showTab(tabId, event) {
 
   let target = document.getElementById(realTabId);
   if (!target) {
+    console.log("Target not found for", realTabId);
     target = document.getElementById("pedidos");
     realTabId = "pedidos";
+  } else {
+    console.log("Target found:", target);
   }
 
   localStorage.setItem("app_lastTab", realTabId);
@@ -236,6 +240,7 @@ function showTab(tabId, event) {
 
   // 3. Ativa a aba pai
   target.classList.add("active");
+  console.log("Added active class to", realTabId);
 
   // 4. Ativa o botão no menu lateral
   if (event && event.currentTarget) {
@@ -253,10 +258,12 @@ function showTab(tabId, event) {
   // 5. PULO DO GATO: Se a aba for produtos, categorias ou motoboys,
   // precisamos ativar a SUB-ABA correspondente
   if (realTabId === "produtos") {
+    console.log("Calling showSubTab for produtos");
     if (tabId === "categorias") showSubTab("lista-categorias-wrapper");
     else if (tabId === "motoboys") showSubTab("lista-motos-wrapper");
     else {
       const savedSub = localStorage.getItem("app_lastSubTab");
+      console.log("Saved sub tab:", savedSub);
       showSubTab(savedSub || "lista-produtos-wrapper"); // Restaura a última sub-aba ou Padrão
     }
   }
@@ -312,12 +319,21 @@ function showTab(tabId, event) {
   }
 }
 
+const SUBTABS_VALIDAS = ["lista-produtos-wrapper", "lista-categorias-wrapper", "lista-motos-wrapper"];
+
+
 function showSubTab(subId) {
   console.log("Alternando para sub-aba:", subId);
+
+  if (!SUBTABS_VALIDAS.includes(subId)) {
+    subId = "lista-produtos-wrapper";
+  }
+
   localStorage.setItem("app_lastSubTab", subId);
 
   // 1. Seleciona todas as sub-abas e esconde TODAS
   const subtabs = document.querySelectorAll(".subtab-content");
+  console.log("Hiding all subtabs, found:", subtabs.length);
   subtabs.forEach((tab) => {
     tab.style.display = "none";
   });
@@ -325,7 +341,10 @@ function showSubTab(subId) {
   // 2. Mostra apenas a que foi clicada
   const target = document.getElementById(subId);
   if (target) {
+    console.log("Showing subtab:", subId);
     target.style.display = "block";
+  } else {
+    console.log("Subtab not found:", subId);
   }
 
   // 3. Carrega os dados específicos
@@ -401,7 +420,8 @@ function _aplicarVisibilidadeAbas() {
     "menu-estatisticas":  "estatisticas",
     "menu-ficha-tecnica": "ficha-tecnica",
     "menu-crm":           "crm",
-    "menu-turnos":        "turnos"
+    "menu-turnos":        "turnos",
+    "menu-produtos":      "produtos",
   };
   // Só aplica restrições para cargos abaixo de adminMaster
   if (perfilUsuario === "adminMaster") return;
