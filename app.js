@@ -710,13 +710,11 @@ async function renderMenu() {
     if (
       tipo === "pizza" &&
       cfg &&
-      cfg.pizza &&
-      cfg.pizza.tamanhos &&
-      cfg.pizza.tamanhos.length > 0
+      (cfg.tamanhos || cfg.pizza?.tamanhos) &&
+      (cfg.tamanhos || cfg.pizza?.tamanhos).length > 0
     ) {
-      const precos = cfg.pizza.tamanhos
-        .map((t) => t.preco || 0)
-        .filter((p) => p > 0);
+      const tamanhos = cfg.tamanhos || cfg.pizza?.tamanhos || [];
+      const precos = tamanhos.map((t) => t.preco || 0).filter((p) => p > 0);
       if (precos.length > 0) {
         const min = Math.min(...precos);
         precoLabel = `<span style="font-size:0.72rem;font-weight:500;opacity:0.7">A partir de</span> Gs ${min.toLocaleString("es-PY")}`;
@@ -933,8 +931,10 @@ function _renderMontavel(item, cfg, container) {
 // ═══════════════════════════════════════════════════════════
 
 function _renderPizza(cfg, container) {
-  if (!cfg || !cfg.pizza) return;
-  const p = cfg.pizza;
+  if (!cfg) return;
+  // Suporta ambos: cfg.pizza (estrutura nova) ou cfg direto (estrutura antigos do BD)
+  const p = cfg.pizza || cfg;
+  if (!p.tamanhos) return; // Valida que tem tamanhos
   _pizzaConfig.p = p;
 
   /* ── PASSO 1: Tamanho ─────────────────────────────── */
@@ -1249,7 +1249,9 @@ function _atualizarPrecoPizza() {
     return;
   }
 
-  if (!cfg || !cfg.pizza) {
+  // Suporta ambos: cfg.pizza (novo) ou cfg direto (antigo)
+  const p = _pizzaConfig.p;
+  if (!p || !p.tamanhos) {
     const base = prodAtual?.preco || 0;
     const total = (base + extrasTotal) * qtd;
     document.getElementById("modal-price").innerText =

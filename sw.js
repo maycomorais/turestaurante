@@ -1,4 +1,4 @@
-const CACHE_NAME = "turestaurante-v3";
+const CACHE_NAME = "turestaurante-v4";
 
 const BLOCKED_ORIGINS = [
   "instagram.",
