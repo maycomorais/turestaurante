@@ -1,6 +1,8 @@
 // Fallback para t() caso admin-i18n.js não esteja carregado ainda
-if (typeof t === 'undefined') {
-  window.t = function(key, fallback) { return fallback || key; };
+if (typeof t === "undefined") {
+  window.t = function (key, fallback) {
+    return fallback || key;
+  };
 }
 
 // =========================================
@@ -13,7 +15,7 @@ let COORD_LOJA = { lat: 0, lng: 0 }; // coord_lat / coord_lng
 let CHAVE_PIX_CFG = ""; // chave_pix
 let NOME_PIX_CFG = ""; // nome_pix
 let DADOS_ALIAS_CFG = ""; // dados_alias
-let QR_PY_URL      = ""; // URL do QR Paraguay
+let QR_PY_URL = ""; // URL do QR Paraguay
 let NOME_ALIAS_CFG = ""; // nome_alias
 let WHATSAPP_LOJA_CFG = ""; // whatsapp_loja (dígitos)
 let NOME_RESTAURANTE = ""; // nome_restaurante
@@ -30,7 +32,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Para não disparar alert('Acesso restrito') antes de perfilUsuario estar definido,
   // começa sempre no dashboard e restaura a aba real após o login
   let lastTab = localStorage.getItem("app_lastTab");
-  const _restrictedTabs = ["inventario", "financeiro", "adminmaster", "estatisticas", "ficha-tecnica", "crm"];
+  const _restrictedTabs = [
+    "inventario",
+    "financeiro",
+    "adminmaster",
+    "estatisticas",
+    "ficha-tecnica",
+    "crm",
+  ];
   if (
     !lastTab ||
     !document.getElementById(lastTab) ||
@@ -153,7 +162,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       perfilUsuario === "gerente" ||
       perfilUsuario === "adminMaster"
     ) {
-      ["menu-estatisticas", "menu-ficha-tecnica", "menu-crm", "menu-mensalistas"].forEach((id) => {
+      [
+        "menu-estatisticas",
+        "menu-ficha-tecnica",
+        "menu-crm",
+        "menu-mensalistas",
+      ].forEach((id) => {
         const m = document.getElementById(id);
         if (m) m.style.display = "flex";
       });
@@ -231,15 +245,17 @@ function showTab(tabId, event) {
   localStorage.setItem("app_lastTab", realTabId);
 
   // 2. Reset visual
-  document
-    .querySelectorAll(".tab-content")
-    .forEach((t) => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach((t) => {
+    t.classList.remove("active");
+    t.style.display = "none";
+  });
   document
     .querySelectorAll(".menu-item")
     .forEach((m) => m.classList.remove("active"));
 
   // 3. Ativa a aba pai
   target.classList.add("active");
+  target.style.display = "block";
   console.log("Added active class to", realTabId);
 
   // 4. Ativa o botão no menu lateral
@@ -282,20 +298,20 @@ function showTab(tabId, event) {
     amCarregarUsuarios();
     renderPainelFeatures();
   }
-  if (realTabId === 'estatisticas') {
+  if (realTabId === "estatisticas") {
     initEstatisticas();
     _estPopularCategorias();
   }
-  if (realTabId === 'ficha-tecnica') {
+  if (realTabId === "ficha-tecnica") {
     initFichaTecnica();
   }
-  if (realTabId === 'crm') {
+  if (realTabId === "crm") {
     initCRM();
   }
-  if (realTabId === 'filiais') {
+  if (realTabId === "filiais") {
     initFiliais();
   }
-  if (realTabId === 'mensalistas') {
+  if (realTabId === "mensalistas") {
     initMensalistas();
   }
   if (realTabId === "configuracoes") {
@@ -319,8 +335,11 @@ function showTab(tabId, event) {
   }
 }
 
-const SUBTABS_VALIDAS = ["lista-produtos-wrapper", "lista-categorias-wrapper", "lista-motos-wrapper"];
-
+const SUBTABS_VALIDAS = [
+  "lista-produtos-wrapper",
+  "lista-categorias-wrapper",
+  "lista-motos-wrapper",
+];
 
 function showSubTab(subId) {
   console.log("Alternando para sub-aba:", subId);
@@ -385,17 +404,20 @@ async function _carregarFeaturesGlobais() {
 // ── Filtra formas de pagamento no PDV conforme features_ativas.pagamentos ──────
 function _aplicarFormasPagamentoPDV(features) {
   const pags = features?.pagamentos;
-  const select = document.getElementById('balcao-pag');
+  const select = document.getElementById("balcao-pag");
   if (!select) return;
-  Array.from(select.options).forEach(opt => {
+  Array.from(select.options).forEach((opt) => {
     if (!opt.value) return;
-    if (!pags) { opt.style.display = ''; return; }
+    if (!pags) {
+      opt.style.display = "";
+      return;
+    }
     if (pags[opt.value] === false) {
-      opt.style.display = 'none';
+      opt.style.display = "none";
       // Se a opção oculta estava selecionada, reset para Efetivo
-      if (select.value === opt.value) select.value = 'Efetivo';
+      if (select.value === opt.value) select.value = "Efetivo";
     } else {
-      opt.style.display = '';
+      opt.style.display = "";
     }
   });
 }
@@ -417,11 +439,11 @@ function _aplicarVisibilidadeAbas() {
     "menu-equipe": "equipe",
     "menu-configuracoes": "configuracoes",
     "menu-dashboard": "dashboard",
-    "menu-estatisticas":  "estatisticas",
+    "menu-estatisticas": "estatisticas",
     "menu-ficha-tecnica": "ficha-tecnica",
-    "menu-crm":           "crm",
-    "menu-turnos":        "turnos",
-    "menu-produtos":      "produtos",
+    "menu-crm": "crm",
+    "menu-turnos": "turnos",
+    "menu-produtos": "produtos",
   };
   // Só aplica restrições para cargos abaixo de adminMaster
   if (perfilUsuario === "adminMaster") return;
@@ -433,7 +455,7 @@ function _aplicarVisibilidadeAbas() {
 
 // Salva features (adminMaster only)
 async function salvarFeatures() {
-  if (perfilUsuario !== "adminMaster") return alert(t('alert.acesso_negado'));
+  if (perfilUsuario !== "adminMaster") return alert(t("alert.acesso_negado"));
   const tabs = {},
     tipos = {},
     funcs = {};
@@ -450,14 +472,19 @@ async function salvarFeatures() {
   document.querySelectorAll("[data-feat-pag]").forEach((el) => {
     pagamentos[el.dataset.featPag] = el.checked;
   });
-  const features = { tabs, tipos_produto: tipos, funcionalidades: funcs, pagamentos };
+  const features = {
+    tabs,
+    tipos_produto: tipos,
+    funcionalidades: funcs,
+    pagamentos,
+  };
   const { error } = await supa
     .from("configuracoes")
     .update({ features_ativas: features })
     .gt("id", 0);
   if (error) return alert("Erro: " + error.message);
   FEATURES_ATIVAS = features;
-  alert(t('alert.features_salvas'));
+  alert(t("alert.features_salvas"));
 }
 
 // Renderiza painel de features (adminMaster)
@@ -539,18 +566,21 @@ async function renderPainelFeatures() {
 
   const pags = f.pagamentos || {};
   const chkPags = [
-    ["Efetivo",       "💵 Efectivo/Dinheiro"],
-    ["Cartao",        "💳 Tarjeta PY"],
-    ["CartaoBR",      "💳🇧🇷 Cartão Brasileiro (R$)"],
-    ["Pix",           "🟢 Pix (BR)"],
+    ["Efetivo", "💵 Efectivo/Dinheiro"],
+    ["Cartao", "💳 Tarjeta PY"],
+    ["CartaoBR", "💳🇧🇷 Cartão Brasileiro (R$)"],
+    ["Pix", "🟢 Pix (BR)"],
     ["Transferencia", "🏦 Alias/Transferência PY"],
-    ["QrPy",          "📱 QR Paraguay"],
-    ["Multipagamento","🔀 Dividir Pagamento"],
-  ].map(([k,l]) =>
-    `<label style="display:flex;align-items:center;gap:8px;padding:6px;background:#f9f9f9;border-radius:6px">
-      <input type="checkbox" data-feat-pag="${k}" ${pags[k]!==false?"checked":""} style="width:18px;height:18px">
-      <span>${l}</span></label>`
-  ).join("");
+    ["QrPy", "📱 QR Paraguay"],
+    ["Multipagamento", "🔀 Dividir Pagamento"],
+  ]
+    .map(
+      ([k, l]) =>
+        `<label style="display:flex;align-items:center;gap:8px;padding:6px;background:#f9f9f9;border-radius:6px">
+      <input type="checkbox" data-feat-pag="${k}" ${pags[k] !== false ? "checked" : ""} style="width:18px;height:18px">
+      <span>${l}</span></label>`,
+    )
+    .join("");
 
   const html = `
     <div style="display:grid;gap:20px">
@@ -675,7 +705,9 @@ async function carregarPedidos(silencioso = false) {
   const { data: pedidos } = await supa
     .from("pedidos")
     .select("*")
-    .or("status.eq.pendente,status.eq.em_preparo,status.eq.pronto_entrega,status.eq.saiu_entrega")
+    .or(
+      "status.eq.pendente,status.eq.em_preparo,status.eq.pronto_entrega,status.eq.saiu_entrega",
+    )
     .order("id", { ascending: false });
 
   const tbody = document.getElementById("lista-pedidos");
@@ -711,10 +743,9 @@ async function carregarPedidos(silencioso = false) {
 
   // Badge de cancelamento pendente para o dono / adminMaster
   const _podeCancel = ["dono", "adminMaster"].includes(perfilUsuario);
-  const badgeCancelPendente =
-    _podeCancel
-      ? `<span style="background:#e74c3c;color:white;font-size:0.7rem;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;">CANC. PENDENTE</span>`
-      : "";
+  const badgeCancelPendente = _podeCancel
+    ? `<span style="background:#e74c3c;color:white;font-size:0.7rem;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;">CANC. PENDENTE</span>`
+    : "";
 
   if (pedidos && pedidos.length > 0) {
     pedidos.forEach((p) => {
@@ -752,23 +783,21 @@ async function carregarPedidos(silencioso = false) {
       // EM PREPARO (na cozinha — visível para acompanhamento)
       if (p.status === "em_preparo") {
         linhaCor = "background-color: #fff8e6;";
-        const _btnCancelPreparo =
-          _podeCancel
-            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')" title="Cancelar"><i class="fas fa-times"></i></button>`
-            : !temSolicitacaoCancelamento
-              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i></button>`
-              : `<span style="font-size:0.72rem;color:#e67e22;font-weight:600">⏳ Cancel. Pendente</span>`;
+        const _btnCancelPreparo = _podeCancel
+          ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')" title="Cancelar"><i class="fas fa-times"></i></button>`
+          : !temSolicitacaoCancelamento
+            ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i></button>`
+            : `<span style="font-size:0.72rem;color:#e67e22;font-weight:600">⏳ Cancel. Pendente</span>`;
         acoes = `${btnPrint} <button class="btn btn-sm" style="background:#e67e22;color:#fff" onclick="mudarStatus(${p.id}, 'pronto_entrega')"><i class="fas fa-check"></i> Pronto</button> ${_btnCancelPreparo}`;
       }
 
       if (p.status === "saiu_entrega") {
         linhaCor = "background-color: #ddf0ff;";
-        const _btnCancelSaiu =
-          _podeCancel
-            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')" title="Cancelar"><i class="fas fa-times"></i></button>`
-            : !temSolicitacaoCancelamento
-              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})" title="Solicitar cancelamento"><i class="fas fa-ban"></i> Cancelar</button>`
-              : `<span style="font-size:0.72rem;color:#e67e22;font-weight:600">⏳ Cancel. Pendente</span>`;
+        const _btnCancelSaiu = _podeCancel
+          ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')" title="Cancelar"><i class="fas fa-times"></i></button>`
+          : !temSolicitacaoCancelamento
+            ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})" title="Solicitar cancelamento"><i class="fas fa-ban"></i> Cancelar</button>`
+            : `<span style="font-size:0.72rem;color:#e67e22;font-weight:600">⏳ Cancel. Pendente</span>`;
         acoes = `${btnPrint} <button class="btn btn-success btn-sm" onclick="confirmarEntregaFuncionario(${p.id})"><i class="fas fa-check-circle"></i> Confirmar</button> ${_btnCancelSaiu}`;
       }
       // PRONTO
@@ -776,12 +805,11 @@ async function carregarPedidos(silencioso = false) {
         linhaCor = "background-color: #d4edda;";
 
         // Botão cancelamento para pronto_entrega
-        const btnCancelar =
-          _podeCancel
-            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')" title="Cancelar"><i class="fas fa-times"></i></button>`
-            : !temSolicitacaoCancelamento
-              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i></button>`
-              : "";
+        const btnCancelar = _podeCancel
+          ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')" title="Cancelar"><i class="fas fa-times"></i></button>`
+          : !temSolicitacaoCancelamento
+            ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i></button>`
+            : "";
 
         if (p.tipo_entrega === "delivery") {
           const jsonSeguro = encodeURIComponent(JSON.stringify(p));
@@ -834,12 +862,11 @@ async function carregarPedidos(silencioso = false) {
         let cardAcoes = "";
         const cardBgSaiu = p.status === "saiu_entrega" ? "#ddf0ff" : "";
         if (p.status === "saiu_entrega") {
-          const _btnCancelSaiuCard =
-            _podeCancel
-              ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
-              : !temSolicitacaoCancelamento
-                ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
-                : `<span style="font-size:0.7rem;color:#e67e22;font-weight:600">⏳ Pendente</span>`;
+          const _btnCancelSaiuCard = _podeCancel
+            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
+            : !temSolicitacaoCancelamento
+              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
+              : `<span style="font-size:0.7rem;color:#e67e22;font-weight:600">⏳ Pendente</span>`;
           cardAcoes = `
                         <button class="btn btn-success btn-sm" onclick="confirmarEntregaFuncionario(${p.id})"><i class="fas fa-check-circle"></i> Confirmar</button>
                         <button class="btn btn-info btn-sm" onclick="imprimirPedido(${p.id})"><i class="fas fa-print"></i> Imprimir</button>
@@ -854,12 +881,11 @@ async function carregarPedidos(silencioso = false) {
                             : `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
                         }`;
         } else if (p.status === "em_preparo") {
-          const _btnCancelPreparoCard =
-            _podeCancel
-              ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
-              : !temSolicitacaoCancelamento
-                ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
-                : `<span style="font-size:0.7rem;color:#e67e22;font-weight:600">⏳ Pendente</span>`;
+          const _btnCancelPreparoCard = _podeCancel
+            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
+            : !temSolicitacaoCancelamento
+              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
+              : `<span style="font-size:0.7rem;color:#e67e22;font-weight:600">⏳ Pendente</span>`;
           cardAcoes = `
                         <button class="btn btn-sm" style="background:#e67e22;color:#fff" onclick="mudarStatus(${p.id}, 'pronto_entrega')"><i class="fas fa-check"></i> Pronto</button>
                         <button class="btn btn-info btn-sm" onclick="imprimirPedido(${p.id})"><i class="fas fa-print"></i> Imprimir</button>
@@ -868,23 +894,21 @@ async function carregarPedidos(silencioso = false) {
           p.status === "pronto_entrega" &&
           p.tipo_entrega === "balcao"
         ) {
-          const _btnCancelBalcao =
-            _podeCancel
-              ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
-              : !temSolicitacaoCancelamento
-                ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
-                : "";
+          const _btnCancelBalcao = _podeCancel
+            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
+            : !temSolicitacaoCancelamento
+              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
+              : "";
           cardAcoes = `<button class="btn btn-success btn-sm" onclick="finalizarMesa(${p.id})"><i class="fas fa-check"></i> Entregar</button>
                         <button class="btn btn-sm" style="background:#25D366;color:#fff" onclick="avisarClientePronto(${p.id})"><i class="fab fa-whatsapp"></i></button>
                         <button class="btn btn-info btn-sm" onclick="imprimirPedido(${p.id})"><i class="fas fa-print"></i></button>
                         ${_btnCancelBalcao}`;
         } else if (p.status === "pronto_entrega") {
-          const _btnCancelPronto =
-            _podeCancel
-              ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
-              : !temSolicitacaoCancelamento
-                ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i></button>`
-                : "";
+          const _btnCancelPronto = _podeCancel
+            ? `<button class="btn btn-danger btn-sm" onclick="mudarStatus(${p.id}, 'cancelado')"><i class="fas fa-times"></i></button>`
+            : !temSolicitacaoCancelamento
+              ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i></button>`
+              : "";
           cardAcoes = `<label style="display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#155724;font-weight:600;">
                         <input type="checkbox" class="check-pedido" value="${jsonSeguro}" style="width:18px;height:18px;"> Incluir na Rota
                     </label>
@@ -934,9 +958,7 @@ async function carregarPedidos(silencioso = false) {
 
 // === CANCELAMENTO WORKFLOW ===
 async function solicitarCancelamento(pedidoId) {
-  const motivo = prompt(
-    t('prompt.motivo_cancel'),
-  );
+  const motivo = prompt(t("prompt.motivo_cancel"));
   if (!motivo || !motivo.trim()) return;
 
   const user = await supa.auth.getUser();
@@ -958,16 +980,18 @@ async function solicitarCancelamento(pedidoId) {
   }
 
   // Registra na tabela de solicitações (falha silenciosa não bloqueia o fluxo)
-  const { error: errSol } = await supa.from("solicitacoes_cancelamento").insert([
-    {
-      pedido_id: pedidoId,
-      motivo: motivo.trim(),
-      solicitado_por: email,
-    },
-  ]);
+  const { error: errSol } = await supa
+    .from("solicitacoes_cancelamento")
+    .insert([
+      {
+        pedido_id: pedidoId,
+        motivo: motivo.trim(),
+        solicitado_por: email,
+      },
+    ]);
   if (errSol) console.warn("solicitacoes_cancelamento insert:", errSol.message);
 
-  alert(t('alert.cancel_enviado'));
+  alert(t("alert.cancel_enviado"));
   carregarPedidos();
 }
 
@@ -1007,12 +1031,12 @@ async function aprovarCancelamento(pedidoId) {
     .eq("pedido_id", pedidoId)
     .eq("aprovado", false);
 
-  alert(t('alert.cancelado'));
+  alert(t("alert.cancelado"));
   carregarPedidos();
 }
 
 async function negarCancelamento(pedidoId) {
-  const obs = prompt(t('prompt.negar_cancel')) || "";
+  const obs = prompt(t("prompt.negar_cancel")) || "";
   const user = await supa.auth.getUser();
   const email = user?.data?.user?.email || "dono";
 
@@ -1035,7 +1059,7 @@ async function negarCancelamento(pedidoId) {
     .eq("pedido_id", pedidoId)
     .eq("aprovado", false);
 
-  alert(t('alert.cancel_negado'));
+  alert(t("alert.cancel_negado"));
   carregarPedidos();
 }
 
@@ -1080,19 +1104,28 @@ async function mudarStatus(id, novoStatus) {
 // Dispara a Edge Function notificar-cliente de forma fire-and-forget
 async function _notificarClientePush(pedidoId, status) {
   try {
-    const supaUrl = window._SUPABASE_URL || (typeof _SUPABASE_URL !== 'undefined' ? _SUPABASE_URL : '');
+    const supaUrl =
+      window._SUPABASE_URL ||
+      (typeof _SUPABASE_URL !== "undefined" ? _SUPABASE_URL : "");
     if (!supaUrl) return;
-    const fnUrl = supaUrl.replace('/rest/v1', '').replace(/\/+$/, '') + '/functions/v1/notificar-cliente';
+    const fnUrl =
+      supaUrl.replace("/rest/v1", "").replace(/\/+$/, "") +
+      "/functions/v1/notificar-cliente";
     // Usa a chave anon — a Edge Function usa service role internamente
     const { data: session } = await supa.auth.getSession();
     const token = session?.session?.access_token;
     if (!token) return;
     fetch(fnUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ pedido_id: pedidoId, status }),
     }).catch(() => {}); // fire-and-forget, nunca bloqueia
-  } catch (_) { /* silencioso */ }
+  } catch (_) {
+    /* silencioso */
+  }
 }
 
 // === FUNÇÃO DE IMPRESSÃO (RESTAURADA) ===
@@ -1112,15 +1145,15 @@ async function imprimirPedido(id) {
     itens: (p.itens || [])
       .filter((i) => !i.status_item || i.status_item === "pendente")
       .map((i) => ({
-        q:           i.qtd || i.q || 1,
-        n:           i.nome || i.n,
-        p:           i.preco || i.p || 0,
-        t:           i.variacao || i.t || "",
-        pr:          i.preparo || i.pr || "",
-        m:           i.montagem || i.m,
-        o:           i.obs || i.o,
+        q: i.qtd || i.q || 1,
+        n: i.nome || i.n,
+        p: i.preco || i.p || 0,
+        t: i.variacao || i.t || "",
+        pr: i.preparo || i.pr || "",
+        m: i.montagem || i.m,
+        o: i.obs || i.o,
         // Kg — necessário para imprimir.html mostrar peso em vez de qtd
-        _isKg:       i._isKg || false,
+        _isKg: i._isKg || false,
         peso_gramas: i.peso_gramas || 0,
       })),
     valores: {
@@ -1402,7 +1435,9 @@ async function calcularFinanceiro() {
   });
 
   // Soma combustível uma vez por motoboy IDENTIFICADO (exclui "Sem Motoboy")
-  const qtdMotoboyUnicos = Object.keys(motoMap).filter(n => n !== "Sem Motoboy").length;
+  const qtdMotoboyUnicos = Object.keys(motoMap).filter(
+    (n) => n !== "Sem Motoboy",
+  ).length;
   custoEntregas += (AJUDA_COMBUSTIVEL || 0) * qtdMotoboyUnicos;
 
   let totalSaidas = 0,
@@ -1459,25 +1494,44 @@ async function calcularFinanceiro() {
   if (tbD) {
     const despesas = (caixa || []).filter((c) => c.tipo === "despesa");
     const _DLABELS = {
-      despesas_gerais:"📦 Despesas Gerais", contas_fixas:"🏠 Contas Fixas",
-      pagamento_fornecedor:"🤝 Fornecedor", pagamento_funcionario:"👷 Funcionário",
-      pagamento_terceiros:"👥 Terceiros", manutencao:"🔧 Manutenção",
-      retirada:"💵 Retirada", motoboy:"🛵 Motoboy", outro:"✏️ Outro",
+      despesas_gerais: "📦 Despesas Gerais",
+      contas_fixas: "🏠 Contas Fixas",
+      pagamento_fornecedor: "🤝 Fornecedor",
+      pagamento_funcionario: "👷 Funcionário",
+      pagamento_terceiros: "👥 Terceiros",
+      manutencao: "🔧 Manutenção",
+      retirada: "💵 Retirada",
+      motoboy: "🛵 Motoboy",
+      outro: "✏️ Outro",
     };
     if (!despesas.length) {
-      tbD.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Nenhuma despesa no período</td></tr>';
+      tbD.innerHTML =
+        '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Nenhuma despesa no período</td></tr>';
     } else {
-      tbD.innerHTML = despesas.map((d) => {
-        const dt = new Date(d.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-        const tipoLabel = _DLABELS[d.tipo_despesa] || d.tipo_despesa || "—";
-        const descExtra = d.tipo_despesa === "outro" && d.descricao_outro ? ` (${d.descricao_outro})` : "";
-        const obs = d.descricao || "";
-        const enc = encodeURIComponent(JSON.stringify({
-          id:d.id, valor:d.valor,
-          tipo_despesa:d.tipo_despesa||"despesas_gerais",
-          descricao:d.descricao||"", descricao_outro:d.descricao_outro||"",
-        }));
-        return `<tr>
+      tbD.innerHTML = despesas
+        .map((d) => {
+          const dt = new Date(d.created_at).toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const tipoLabel = _DLABELS[d.tipo_despesa] || d.tipo_despesa || "—";
+          const descExtra =
+            d.tipo_despesa === "outro" && d.descricao_outro
+              ? ` (${d.descricao_outro})`
+              : "";
+          const obs = d.descricao || "";
+          const enc = encodeURIComponent(
+            JSON.stringify({
+              id: d.id,
+              valor: d.valor,
+              tipo_despesa: d.tipo_despesa || "despesas_gerais",
+              descricao: d.descricao || "",
+              descricao_outro: d.descricao_outro || "",
+            }),
+          );
+          return `<tr>
           <td style="white-space:nowrap;color:#666;font-size:0.82rem">${dt}</td>
           <td><span style="background:#fdecea;color:#a93226;padding:2px 7px;border-radius:10px;font-size:0.78rem">${tipoLabel}${descExtra}</span></td>
           <td style="color:#555;font-size:0.85rem">${obs}</td>
@@ -1489,7 +1543,8 @@ async function calcularFinanceiro() {
               style="background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem">🗑️</button>
           </td>
         </tr>`;
-      }).join("");
+        })
+        .join("");
     }
   }
 
@@ -1503,7 +1558,7 @@ async function calcularFinanceiro() {
     } else {
       for (const [nome, d] of Object.entries(motoMap)) {
         const semNome = nome === "Sem Motoboy";
-        const comb = semNome ? 0 : (AJUDA_COMBUSTIVEL || 0);
+        const comb = semNome ? 0 : AJUDA_COMBUSTIVEL || 0;
         const tot = d.frete_total + comb;
         const combLabel = semNome
           ? '<span style="color:#aaa;font-size:0.78rem">sem combustível</span>'
@@ -1576,7 +1631,7 @@ async function _verificarBloqueioCaixa(emailAtual) {
 
 async function autorizarReaberturaCaixa(emailAlvo) {
   if (!["dono", "gerente", "adminMaster"].includes(perfilUsuario)) {
-    alert(t('alert.acesso_negado'));
+    alert(t("alert.acesso_negado"));
     return;
   }
   if (!confirm(`Autorizar reabertura do caixa de ${emailAlvo}?`)) return;
@@ -1592,7 +1647,7 @@ async function autorizarReaberturaCaixa(emailAlvo) {
     autorizado_em: new Date().toISOString(),
   };
   await supa.from("configuracoes").update({ caixa_status: status }).gt("id", 0);
-  alert(t('alert.caixa_reaberto'));
+  alert(t("alert.caixa_reaberto"));
   calcularFinanceiro();
 }
 
@@ -2057,7 +2112,7 @@ async function salvarMovimentacaoCaixa() {
     alert("Erro: " + error.message);
     return;
   }
-  alert(t('alert.operacao_registrada'));
+  alert(t("alert.operacao_registrada"));
   fecharModal("modal-caixa");
   calcularFinanceiro();
 }
@@ -2144,94 +2199,161 @@ Fechamento registrado!`);
 // =========================================
 
 async function _buscarDadosRelatorio() {
-  const elI = document.getElementById('fin-inicio');
-  const elF = document.getElementById('fin-fim');
-  const hoje = new Date().toISOString().split('T')[0];
-  const ini  = (elI?.value || hoje) + 'T00:00:00';
-  const fim  = (elF?.value || hoje) + 'T23:59:59';
-  const { data } = await supa.from('pedidos').select('*')
-    .in('status', ['entregue','em_preparo','pronto_entrega','saiu_entrega'])
-    .gte('created_at', ini).lte('created_at', fim);
+  const elI = document.getElementById("fin-inicio");
+  const elF = document.getElementById("fin-fim");
+  const hoje = new Date().toISOString().split("T")[0];
+  const ini = (elI?.value || hoje) + "T00:00:00";
+  const fim = (elF?.value || hoje) + "T23:59:59";
+  const { data } = await supa
+    .from("pedidos")
+    .select("*")
+    .in("status", ["entregue", "em_preparo", "pronto_entrega", "saiu_entrega"])
+    .gte("created_at", ini)
+    .lte("created_at", fim);
   return data || [];
 }
 
 // ── CSV rico para Power BI ────────────────────────────────
 async function exportarCSVPowerBI() {
   const pedidos = await _buscarDadosRelatorio();
-  if (!pedidos.length) { alert('Nenhum pedido no período.'); return; }
+  if (!pedidos.length) {
+    alert("Nenhum pedido no período.");
+    return;
+  }
 
-  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const escape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const cols = [
-    'id','uid_temporal','status','tipo_entrega','created_at',
-    'cliente_nome','cliente_telefone','endereco_entrega',
-    'forma_pagamento','obs_pagamento',
-    'subtotal','desconto_cupom','frete_cobrado_cliente','total_geral',
-    'cupom_codigo','frete_motoboy','garcom_nome',
-    'tempo_recebido','tempo_confirmado','tempo_preparo_iniciado',
-    'tempo_pronto','tempo_saiu_entrega','tempo_entregue',
-    'itens_qtd','itens_nomes','ruc_factura','razao_factura'
+    "id",
+    "uid_temporal",
+    "status",
+    "tipo_entrega",
+    "created_at",
+    "cliente_nome",
+    "cliente_telefone",
+    "endereco_entrega",
+    "forma_pagamento",
+    "obs_pagamento",
+    "subtotal",
+    "desconto_cupom",
+    "frete_cobrado_cliente",
+    "total_geral",
+    "cupom_codigo",
+    "frete_motoboy",
+    "garcom_nome",
+    "tempo_recebido",
+    "tempo_confirmado",
+    "tempo_preparo_iniciado",
+    "tempo_pronto",
+    "tempo_saiu_entrega",
+    "tempo_entregue",
+    "itens_qtd",
+    "itens_nomes",
+    "ruc_factura",
+    "razao_factura",
   ];
 
-  const rows = pedidos.map(p => {
+  const rows = pedidos.map((p) => {
     const itens = Array.isArray(p.itens) ? p.itens : [];
-    const itensQtd   = itens.reduce((a,i) => a + (i.qtd || i.q || 1), 0);
-    const itensNomes = itens.map(i => `${i.qtd||i.q||1}x ${i.nome||i.n}`).join(' | ');
+    const itensQtd = itens.reduce((a, i) => a + (i.qtd || i.q || 1), 0);
+    const itensNomes = itens
+      .map((i) => `${i.qtd || i.q || 1}x ${i.nome || i.n}`)
+      .join(" | ");
     const f = p.dados_factura || {};
     return [
-      p.id, p.uid_temporal || '', p.status, p.tipo_entrega,
-      p.created_at ? new Date(p.created_at).toLocaleString('pt-BR') : '',
-      p.cliente_nome || '', p.cliente_telefone || '', p.endereco_entrega || '',
-      p.forma_pagamento || '', p.obs_pagamento || '',
-      p.subtotal || 0, p.desconto_cupom || 0, p.frete_cobrado_cliente || 0, p.total_geral || 0,
-      p.cupom_codigo || '', p.frete_motoboy || 0, p.garcom_nome || '',
-      p.tempo_recebido || '', p.tempo_confirmado || '', p.tempo_preparo_iniciado || '',
-      p.tempo_pronto || '', p.tempo_saiu_entrega || '', p.tempo_entregue || '',
-      itensQtd, itensNomes, f.ruc || f.ci || '', f.razao || ''
-    ].map(escape).join(',');
+      p.id,
+      p.uid_temporal || "",
+      p.status,
+      p.tipo_entrega,
+      p.created_at ? new Date(p.created_at).toLocaleString("pt-BR") : "",
+      p.cliente_nome || "",
+      p.cliente_telefone || "",
+      p.endereco_entrega || "",
+      p.forma_pagamento || "",
+      p.obs_pagamento || "",
+      p.subtotal || 0,
+      p.desconto_cupom || 0,
+      p.frete_cobrado_cliente || 0,
+      p.total_geral || 0,
+      p.cupom_codigo || "",
+      p.frete_motoboy || 0,
+      p.garcom_nome || "",
+      p.tempo_recebido || "",
+      p.tempo_confirmado || "",
+      p.tempo_preparo_iniciado || "",
+      p.tempo_pronto || "",
+      p.tempo_saiu_entrega || "",
+      p.tempo_entregue || "",
+      itensQtd,
+      itensNomes,
+      f.ruc || f.ci || "",
+      f.razao || "",
+    ]
+      .map(escape)
+      .join(",");
   });
 
-  const csv = '\uFEFF' + cols.join(',') + '\n' + rows.join('\n'); // BOM para Excel/PBI
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  const hoje = new Date().toISOString().split('T')[0];
-  a.href = url; a.download = `relatorio_${hoje}_powerbi.csv`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const csv = "\uFEFF" + cols.join(",") + "\n" + rows.join("\n"); // BOM para Excel/PBI
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const hoje = new Date().toISOString().split("T")[0];
+  a.href = url;
+  a.download = `relatorio_${hoje}_powerbi.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  alert(t('alert.csv_exportado') + ` (${pedidos.length} pedidos)`);
+  alert(t("alert.csv_exportado") + ` (${pedidos.length} pedidos)`);
 }
 
 // ── PDF via janela de impressão ───────────────────────────
 async function exportarPDF() {
   const pedidos = await _buscarDadosRelatorio();
-  if (!pedidos.length) { alert('Nenhum pedido no período.'); return; }
+  if (!pedidos.length) {
+    alert("Nenhum pedido no período.");
+    return;
+  }
 
-  const elI = document.getElementById('fin-inicio');
-  const elF = document.getElementById('fin-fim');
-  const hoje = new Date().toISOString().split('T')[0];
+  const elI = document.getElementById("fin-inicio");
+  const elF = document.getElementById("fin-fim");
+  const hoje = new Date().toISOString().split("T")[0];
   const periodoLabel = `${elI?.value || hoje} a ${elF?.value || hoje}`;
 
-  const fmt = n => 'Gs ' + (n||0).toLocaleString('es-PY');
-  const total = pedidos.reduce((a,p) => a + (p.total_geral||0), 0);
-  const totalPix = pedidos.filter(p=>(p.forma_pagamento||'').toLowerCase().includes('pix')).reduce((a,p)=>a+(p.total_geral||0),0);
-  const totalEfet = pedidos.filter(p=>(p.forma_pagamento||'').toLowerCase().includes('efetivo')||(p.forma_pagamento||'').toLowerCase().includes('dinheiro')).reduce((a,p)=>a+(p.total_geral||0),0);
-  const totalCard = pedidos.filter(p=>(p.forma_pagamento||'').toLowerCase().includes('cart')).reduce((a,p)=>a+(p.total_geral||0),0);
+  const fmt = (n) => "Gs " + (n || 0).toLocaleString("es-PY");
+  const total = pedidos.reduce((a, p) => a + (p.total_geral || 0), 0);
+  const totalPix = pedidos
+    .filter((p) => (p.forma_pagamento || "").toLowerCase().includes("pix"))
+    .reduce((a, p) => a + (p.total_geral || 0), 0);
+  const totalEfet = pedidos
+    .filter(
+      (p) =>
+        (p.forma_pagamento || "").toLowerCase().includes("efetivo") ||
+        (p.forma_pagamento || "").toLowerCase().includes("dinheiro"),
+    )
+    .reduce((a, p) => a + (p.total_geral || 0), 0);
+  const totalCard = pedidos
+    .filter((p) => (p.forma_pagamento || "").toLowerCase().includes("cart"))
+    .reduce((a, p) => a + (p.total_geral || 0), 0);
 
-  const rows = pedidos.map(p => {
-    const tz = { timeZone: 'America/Asuncion' };
-    const hora = new Date(p.created_at).toLocaleString('pt-BR', tz);
-    const itens = (Array.isArray(p.itens) ? p.itens : []).map(i=>`${i.qtd||i.q||1}x ${i.nome||i.n}`).join(', ');
-    return `<tr>
-      <td>${p.uid_temporal||('#'+p.id)}</td>
+  const rows = pedidos
+    .map((p) => {
+      const tz = { timeZone: "America/Asuncion" };
+      const hora = new Date(p.created_at).toLocaleString("pt-BR", tz);
+      const itens = (Array.isArray(p.itens) ? p.itens : [])
+        .map((i) => `${i.qtd || i.q || 1}x ${i.nome || i.n}`)
+        .join(", ");
+      return `<tr>
+      <td>${p.uid_temporal || "#" + p.id}</td>
       <td>${hora}</td>
-      <td>${p.cliente_nome||'-'}</td>
-      <td>${itens||'-'}</td>
-      <td>${p.forma_pagamento||'-'}</td>
+      <td>${p.cliente_nome || "-"}</td>
+      <td>${itens || "-"}</td>
+      <td>${p.forma_pagamento || "-"}</td>
       <td style="text-align:right">${fmt(p.total_geral)}</td>
     </tr>`;
-  }).join('');
+    })
+    .join("");
 
-  const nomeRestaurante = NOME_RESTAURANTE || 'Relatório';
+  const nomeRestaurante = NOME_RESTAURANTE || "Relatório";
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   <title>Relatório ${periodoLabel}</title>
@@ -2254,11 +2376,11 @@ async function exportarPDF() {
   </style>
   </head><body>
   <h1>${nomeRestaurante} — Relatório Financeiro</h1>
-  <div class="sub">Período: ${periodoLabel} &nbsp;|&nbsp; Gerado em: ${new Date().toLocaleString('pt-BR')}</div>
+  <div class="sub">Período: ${periodoLabel} &nbsp;|&nbsp; Gerado em: ${new Date().toLocaleString("pt-BR")}</div>
   <div class="resumo">
     <div class="card"><div class="lbl">Total Faturado</div><div class="val">${fmt(total)}</div></div>
     <div class="card"><div class="lbl">Pedidos</div><div class="val">${pedidos.length}</div></div>
-    <div class="card"><div class="lbl">Ticket Médio</div><div class="val">${fmt(pedidos.length ? Math.round(total/pedidos.length) : 0)}</div></div>
+    <div class="card"><div class="lbl">Ticket Médio</div><div class="val">${fmt(pedidos.length ? Math.round(total / pedidos.length) : 0)}</div></div>
     <div class="card"><div class="lbl">Pix</div><div class="val">${fmt(totalPix)}</div></div>
     <div class="card"><div class="lbl">Dinheiro</div><div class="val">${fmt(totalEfet)}</div></div>
     <div class="card"><div class="lbl">Cartão</div><div class="val">${fmt(totalCard)}</div></div>
@@ -2267,11 +2389,11 @@ async function exportarPDF() {
     <thead><tr><th>#</th><th>Data/Hora</th><th>Cliente</th><th>Itens</th><th>Pagamento</th><th>Total</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div class="footer">${nomeRestaurante} &nbsp;·&nbsp; ${new Date().toLocaleDateString('pt-BR')} &nbsp;·&nbsp; ${pedidos.length} registros</div>
+  <div class="footer">${nomeRestaurante} &nbsp;·&nbsp; ${new Date().toLocaleDateString("pt-BR")} &nbsp;·&nbsp; ${pedidos.length} registros</div>
   <script>window.onload=()=>window.print();<\/script>
   </body></html>`;
 
-  const w = window.open('', 'PDF', 'width=900,height=700');
+  const w = window.open("", "PDF", "width=900,height=700");
   w.document.write(html);
   w.document.close();
 }
@@ -2284,7 +2406,7 @@ function enviarRotaZap() {
   const selMoto = document.getElementById("sel-motoboy");
 
   if (checks.length === 0 || !selMoto.value)
-    return alert(t('alert.sel_pedidos_moto'));
+    return alert(t("alert.sel_pedidos_moto"));
 
   // Pega dados do motoboy selecionado
   const opt = selMoto.options[selMoto.selectedIndex];
@@ -2309,7 +2431,7 @@ function enviarRotaZap() {
         .then();
 
       msg += `📦 *PEDIDO #${p.uid_temporal || p.id}*\n`;
-      msg += `👤 ${p.cliente_nome || 'Cliente'} | 📞 ${p.cliente_telefone || ''}\n`;
+      msg += `👤 ${p.cliente_nome || "Cliente"} | 📞 ${p.cliente_telefone || ""}\n`;
 
       if (p.itens && Array.isArray(p.itens)) {
         // Separa bebidas (para levar imediatamente) do restante
@@ -2317,15 +2439,36 @@ function enviarRotaZap() {
           if (i.es_bebida) return true;
           const cat = (i.categoria_slug || i.cat || "").toLowerCase();
           const _SLUGS_BEBIDA = [
-            "bebida", "bebidas", "drink", "drinks",
-            "refrigerante", "refrigerantes", "gaseosa", "gaseosas",
-            "suco", "sucos", "jugo", "jugos",
-            "cerveja", "cervejas", "cerveza", "cervezas",
-            "trago", "tragos", "licor", "licores",
-            "agua", "aguas", "água", "águas",
-            "vino", "vinos", "vinho", "vinhos",
+            "bebida",
+            "bebidas",
+            "drink",
+            "drinks",
+            "refrigerante",
+            "refrigerantes",
+            "gaseosa",
+            "gaseosas",
+            "suco",
+            "sucos",
+            "jugo",
+            "jugos",
+            "cerveja",
+            "cervejas",
+            "cerveza",
+            "cervezas",
+            "trago",
+            "tragos",
+            "licor",
+            "licores",
+            "agua",
+            "aguas",
+            "água",
+            "águas",
+            "vino",
+            "vinos",
+            "vinho",
+            "vinhos",
           ];
-          return _SLUGS_BEBIDA.some(s => cat === s || cat.includes(s));
+          return _SLUGS_BEBIDA.some((s) => cat === s || cat.includes(s));
         };
         const bebidas = p.itens.filter(_esBebida);
         const naoFoodKds = p.itens.filter((i) => !_esBebida(i));
@@ -2367,9 +2510,9 @@ function enviarRotaZap() {
       }
 
       // LÓGICA DE PAGAMENTO
-      const forma = (p.forma_pagamento || '').toLowerCase();
+      const forma = (p.forma_pagamento || "").toLowerCase();
       const totalGeral = p.total_geral || 0;
-      const totalFmt = totalGeral.toLocaleString('es-PY');
+      const totalFmt = totalGeral.toLocaleString("es-PY");
 
       if (
         forma.includes("pix") ||
@@ -2386,10 +2529,10 @@ function enviarRotaZap() {
       } else {
         msg += `💰 *COBRAR: Gs ${totalFmt}*\n`;
 
-        const obsPag = p.obs_pagamento || '';
+        const obsPag = p.obs_pagamento || "";
         const nums = obsPag.match(/\d+/g);
         if (nums) {
-          let valorTroco = parseInt(nums.join(''));
+          let valorTroco = parseInt(nums.join(""));
           if (valorTroco < 1000) valorTroco *= 1000;
           if (valorTroco > totalGeral) {
             const devolver = valorTroco - totalGeral;
@@ -2401,7 +2544,7 @@ function enviarRotaZap() {
 
       msg += `-----------------\n`;
       const _freteM = parseFloat(p.frete_motoboy);
-      taxaTotal += isNaN(_freteM) ? (TAXA_MOTOBOY || 0) : _freteM;
+      taxaTotal += isNaN(_freteM) ? TAXA_MOTOBOY || 0 : _freteM;
     } catch (e) {
       console.error("Erro ao processar pedido na rota:", e);
     }
@@ -2972,8 +3115,7 @@ async function salvarProduto() {
       ativo: true,
       somente_balcao:
         document.getElementById("prod-somente-balcao")?.checked || false,
-      es_bebida:
-        document.getElementById("prod-es-bebida")?.checked || false,
+      es_bebida: document.getElementById("prod-es-bebida")?.checked || false,
       inventario_id: inventarioId,
     };
 
@@ -3792,7 +3934,7 @@ async function duplicarProduto(id) {
     alert("Erro ao duplicar: " + errIns.message);
     return;
   }
-  alert(t('alert.produto_duplicado'));
+  alert(t("alert.produto_duplicado"));
   carregarProdutos();
 }
 
@@ -4013,7 +4155,7 @@ async function _confirmarEncerramentoDelivery() {
   }
 
   document.getElementById("modal-encerramento-delivery")?.remove();
-  alert(t('alert.delivery_encerrado'));
+  alert(t("alert.delivery_encerrado"));
 
   // Atualiza badge no painel se existir
   const badge = document.getElementById("badge-delivery-status");
@@ -4039,7 +4181,7 @@ async function reabrirDelivery() {
     return;
   }
 
-  alert(t('alert.delivery_reaberto'));
+  alert(t("alert.delivery_reaberto"));
 
   const badge = document.getElementById("badge-delivery-status");
   if (badge) {
@@ -4896,7 +5038,7 @@ async function deletarProduto(id) {
     if (error) {
       alert("❌ Erro ao deletar: " + error.message);
     } else {
-      alert(t('alert.produto_excluido'));
+      alert(t("alert.produto_excluido"));
       carregarProdutos();
     }
   } catch (e) {
@@ -5159,7 +5301,7 @@ async function salvarMotoboy() {
       if (error) throw error;
     }
 
-    alert(t('alert.moto_salvo'));
+    alert(t("alert.moto_salvo"));
     fecharModal("modal-moto");
     carregarMotoboys();
     carregarMotoboysSelect(); // Atualiza o select da Rota
@@ -5630,7 +5772,7 @@ async function salvarConfiguracoes() {
 
   const { error } = await supa.from("configuracoes").update(dados).gt("id", 0);
   if (error) alert("Erro: " + error.message);
-  else alert(t('alert.cfg_salvas'));
+  else alert(t("alert.cfg_salvas"));
 }
 
 function previewBanner(input, num = 1) {
@@ -5859,7 +6001,7 @@ async function salvarTabelaFrete() {
     return;
   }
   TABELA_FRETE_ADMIN = tabela;
-  alert(t('alert.frete_salvo'));
+  alert(t("alert.frete_salvo"));
 }
 
 // ── MAQUININHAS DE CARTÃO ─────────────────────────────────────────
@@ -6257,17 +6399,25 @@ function _calcularIntervalo(periodo, idI, idF) {
 // PDV MOBILE — Tabs de navegação
 // ══════════════════════════════════════════════════════════
 function pdvMudarAba(aba, btn) {
-  localStorage.setItem('app_pdv_aba', aba);
-  document.querySelectorAll(".pdv-tab-btn").forEach(b => b.classList.remove("active"));
+  localStorage.setItem("app_pdv_aba", aba);
+  document
+    .querySelectorAll(".pdv-tab-btn")
+    .forEach((b) => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 
   // Hide all panels, show the selected one
-  document.querySelectorAll(".pdv-tab-panel").forEach(el => el.classList.remove("pdv-tab-active"));
+  document
+    .querySelectorAll(".pdv-tab-panel")
+    .forEach((el) => el.classList.remove("pdv-tab-active"));
 
   if (aba === "produtos") {
-    document.getElementById("pdv-panel-produtos")?.classList.add("pdv-tab-active");
+    document
+      .getElementById("pdv-panel-produtos")
+      ?.classList.add("pdv-tab-active");
   } else if (aba === "carrinho") {
-    document.getElementById("pdv-panel-carrinho")?.classList.add("pdv-tab-active");
+    document
+      .getElementById("pdv-panel-carrinho")
+      ?.classList.add("pdv-tab-active");
   } else if (aba === "monitor") {
     // On mobile: show the mesas panel instead
     const panelMesas = document.getElementById("pdv-panel-mesas");
@@ -6276,7 +6426,9 @@ function pdvMudarAba(aba, btn) {
       panelVenda.style.display = "none";
       panelMesas.style.display = "";
     } else {
-      document.getElementById("pdv-panel-monitor")?.classList.add("pdv-tab-active");
+      document
+        .getElementById("pdv-panel-monitor")
+        ?.classList.add("pdv-tab-active");
     }
   }
 }
@@ -6314,13 +6466,16 @@ function pdvIniciarTabs() {
     document
       .querySelectorAll(".pdv-tab-btn")
       .forEach((b) => b.classList.remove("active"));
-    
+
     const savedPdvAba = localStorage.getItem("app_pdv_aba") || "produtos";
     let activeBtn = null;
     if (tabsEl) {
-      if (savedPdvAba === "produtos") activeBtn = tabsEl.querySelector(".pdv-tab-btn:nth-child(1)");
-      else if (savedPdvAba === "carrinho") activeBtn = tabsEl.querySelector(".pdv-tab-btn:nth-child(2)");
-      else if (savedPdvAba === "mesas") activeBtn = tabsEl.querySelector(".pdv-tab-btn:nth-child(3)");
+      if (savedPdvAba === "produtos")
+        activeBtn = tabsEl.querySelector(".pdv-tab-btn:nth-child(1)");
+      else if (savedPdvAba === "carrinho")
+        activeBtn = tabsEl.querySelector(".pdv-tab-btn:nth-child(2)");
+      else if (savedPdvAba === "mesas")
+        activeBtn = tabsEl.querySelector(".pdv-tab-btn:nth-child(3)");
     }
     pdvMudarAba(savedPdvAba, activeBtn);
   } else {
@@ -6353,10 +6508,10 @@ async function logout() {
 let carrinhoPDV = [];
 let produtosCachePDV = [];
 // Cotação carregada das configurações (fallback 1100)
-let _cotacaoPDV      = 1100;
-let _taxaDebitoPDV   = 1.99;
-let _taxaCreditoPDV  = 4.98;
-let _cartaoBRTipoPDV = 'debito';
+let _cotacaoPDV = 1100;
+let _taxaDebitoPDV = 1.99;
+let _taxaCreditoPDV = 4.98;
+let _cartaoBRTipoPDV = "debito";
 
 async function carregarPDV() {
   // PDV carrega TODOS os produtos ativos (inclui pausado=null e pausado=false)
@@ -6382,11 +6537,14 @@ async function carregarPDV() {
     .from("configuracoes")
     .select("cotacao_real, taxa_debito, taxa_credito")
     .maybeSingle();
-  if (cfg?.cotacao_real)  _cotacaoPDV     = Number(cfg.cotacao_real);
-  if (cfg?.taxa_debito  != null) _taxaDebitoPDV  = Number(cfg.taxa_debito);
+  if (cfg?.cotacao_real) _cotacaoPDV = Number(cfg.cotacao_real);
+  if (cfg?.taxa_debito != null) _taxaDebitoPDV = Number(cfg.taxa_debito);
   if (cfg?.taxa_credito != null) _taxaCreditoPDV = Number(cfg.taxa_credito);
   // Aplica visibilidade das formas de pagamento no PDV
-  const { data: featCfg } = await supa.from("configuracoes").select("features_ativas").maybeSingle();
+  const { data: featCfg } = await supa
+    .from("configuracoes")
+    .select("features_ativas")
+    .maybeSingle();
   _aplicarFormasPagamentoPDV(featCfg?.features_ativas);
 
   renderizarGridPDV();
@@ -6398,14 +6556,15 @@ let produtosCatsPDV = [];
 
 let _pdvCatFiltro = "todos";
 
-
 function pdvSelecionarTipo(tipo, btn) {
-  const inp = document.getElementById('balcao-tipo-entrega');
+  const inp = document.getElementById("balcao-tipo-entrega");
   if (inp) inp.value = tipo;
-  document.querySelectorAll('.pdv-tipo-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  const delivRow = document.getElementById('pdv-delivery-row');
-  if (delivRow) delivRow.style.display = tipo === 'delivery' ? '' : 'none';
+  document
+    .querySelectorAll(".pdv-tipo-tab")
+    .forEach((b) => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+  const delivRow = document.getElementById("pdv-delivery-row");
+  if (delivRow) delivRow.style.display = tipo === "delivery" ? "" : "none";
   atualizarCarrinhoPDV();
 }
 
@@ -6512,7 +6671,13 @@ function renderizarGridPDV(filtroNome = "") {
 function _criarCardPDV(p) {
   const img = p.imagem_url || "";
   let cfg = p.montagem_config;
-  if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch(_) { cfg = null; } }
+  if (typeof cfg === "string") {
+    try {
+      cfg = JSON.parse(cfg);
+    } catch (_) {
+      cfg = null;
+    }
+  }
   const isKg = cfg && !Array.isArray(cfg) && cfg.__tipo === "kg";
   const precoKg = isKg ? cfg.preco_kg || p.preco || 0 : 0;
 
@@ -6583,8 +6748,12 @@ function _deveMostrarExtrasGlobais(produto) {
 function adicionarItemPDV(p) {
   // montagem_config pode chegar como string JSON de bancos antigos
   let cfg = p.montagem_config;
-  if (typeof cfg === 'string') {
-    try { cfg = JSON.parse(cfg); } catch(_) { cfg = null; }
+  if (typeof cfg === "string") {
+    try {
+      cfg = JSON.parse(cfg);
+    } catch (_) {
+      cfg = null;
+    }
   }
   const tipo = cfg && !Array.isArray(cfg) && cfg.__tipo ? cfg.__tipo : null;
 
@@ -6648,7 +6817,13 @@ function _mostrarModalOpcoesPDV(produto, tipo) {
   document.getElementById("pdv-opcoes-modal")?.remove();
 
   let cfg = produto.montagem_config || {};
-  if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch(_) { cfg = {}; } }
+  if (typeof cfg === "string") {
+    try {
+      cfg = JSON.parse(cfg);
+    } catch (_) {
+      cfg = {};
+    }
+  }
   const cacheKey = "pdv_" + (produto.id || Date.now());
   window._pdvProdCache[cacheKey] = produto;
 
@@ -7287,8 +7462,12 @@ function _mostrarModalPesoPDV(produto, precoKg) {
   if (_toledoPort) {
     const btnBal = document.getElementById("_kg-btn-balanca");
     const txtBal = document.getElementById("_kg-balanca-txt");
-    if (btnBal) { btnBal.style.borderStyle="solid"; btnBal.style.background="#e0f7fa"; }
-    if (txtBal) txtBal.textContent = "🟢 Balança conectada — aguardando peso...";
+    if (btnBal) {
+      btnBal.style.borderStyle = "solid";
+      btnBal.style.background = "#e0f7fa";
+    }
+    if (txtBal)
+      txtBal.textContent = "🟢 Balança conectada — aguardando peso...";
     setTimeout(() => _kgIniciarLeituraBalanca(), 100);
   }
 
@@ -7692,11 +7871,11 @@ function atualizarCarrinhoPDV() {
   const cashDesc = pdvGetCashbackDesconto(total);
   total = Math.max(0, total - cashDesc);
   // Se quiser exibir linha de cashback no resumo, atualize o elemento:
-  const elCash = document.getElementById('pdv-row-cashback');
+  const elCash = document.getElementById("pdv-row-cashback");
   if (elCash) {
-    elCash.style.display = cashDesc > 0 ? 'flex' : 'none';
-    const elCashVal = document.getElementById('balcao-cashback');
-    if (elCashVal) elCashVal.textContent = cashDesc.toLocaleString('es-PY');
+    elCash.style.display = cashDesc > 0 ? "flex" : "none";
+    const elCashVal = document.getElementById("balcao-cashback");
+    if (elCashVal) elCashVal.textContent = cashDesc.toLocaleString("es-PY");
   }
 
   // ── Itens existentes da mesa (snapshot do DB) ──────────────────
@@ -7708,7 +7887,8 @@ function atualizarCarrinhoPDV() {
 
   if (itensExistentes.length > 0) {
     const secTitle = document.createElement("tr");
-    secTitle.innerHTML = '<td colspan="4" class="pdv-sec-title">Itens já lançados</td>';
+    secTitle.innerHTML =
+      '<td colspan="4" class="pdv-sec-title">Itens já lançados</td>';
     lista.appendChild(secTitle);
 
     itensExistentes.forEach((item, idx) => {
@@ -7719,12 +7899,13 @@ function atualizarCarrinhoPDV() {
       total += preco * qtd;
 
       const row = document.createElement("tr");
-      row.className = "pdv-item-existente" + (entregue ? " pdv-item-entregue" : "");
+      row.className =
+        "pdv-item-existente" + (entregue ? " pdv-item-entregue" : "");
       row.innerHTML = `
         <td class="pdv-item-nome">${nome}${entregue ? ' <span class="badge-entregue">✓</span>' : ""}</td>
         <td class="tc">${qtd}</td>
         <td class="tr" style="font-size:0.7rem;color:#666">Gs ${preco.toLocaleString("es-PY")}</td>
-        <td class="tr">Gs ${(preco*qtd).toLocaleString("es-PY")}
+        <td class="tr">Gs ${(preco * qtd).toLocaleString("es-PY")}
           ${!entregue ? `<button class="pdv-item-remove" title="Baixar" onclick="baixarItemMesa(${window._mesaAbertaId},${idx})"><i class="fas fa-check" style="color:#27ae60"></i></button>` : ""}
         </td>`;
       lista.appendChild(row);
@@ -7742,9 +7923,13 @@ function atualizarCarrinhoPDV() {
       const row = document.createElement("tr");
       if (item._isKg) {
         const g = item.peso_gramas || 0;
-        const pesofmt = g >= 1000
-          ? (g/1000).toFixed(3).replace(/\.?0+$/,"").replace(".",",")+"kg"
-          : g+"g";
+        const pesofmt =
+          g >= 1000
+            ? (g / 1000)
+                .toFixed(3)
+                .replace(/\.?0+$/, "")
+                .replace(".", ",") + "kg"
+            : g + "g";
         row.innerHTML = `
           <td class="pdv-item-nome"><span style="color:#0891b2;font-size:0.72rem">⚖️ ${pesofmt}</span> ${item.nome}</td>
           <td class="tc" style="color:#0891b2;font-size:0.7rem">kg</td>
@@ -7755,14 +7940,15 @@ function atualizarCarrinhoPDV() {
           <td class="pdv-item-nome">${item.nome}</td>
           <td class="tc pdv-item-qtd">${item.qtd}×</td>
           <td class="tr" style="font-size:0.7rem;color:#666">Gs ${item.preco.toLocaleString("es-PY")}</td>
-          <td class="tr">Gs ${(item.preco*item.qtd).toLocaleString("es-PY")} <button class="pdv-item-remove" onclick="removerItemPDV(${idx})">✕</button></td>`;
+          <td class="tr">Gs ${(item.preco * item.qtd).toLocaleString("es-PY")} <button class="pdv-item-remove" onclick="removerItemPDV(${idx})">✕</button></td>`;
       }
       lista.appendChild(row);
     });
   }
 
   if (itensExistentes.length === 0 && carrinhoPDV.length === 0) {
-    lista.innerHTML = '<tr><td colspan="4" class="pdv-lista-vazio">Nenhum item adicionado.</td></tr>';
+    lista.innerHTML =
+      '<tr><td colspan="4" class="pdv-lista-vazio">Nenhum item adicionado.</td></tr>';
   }
 
   if (totalEl) totalEl.innerText = total.toLocaleString("es-PY");
@@ -7828,27 +8014,34 @@ function atualizarInfoPagPDV(total) {
   if (pag === "CartaoBR" && total > 0) {
     infoBox.style.display = "block";
     const _renderCarBR = () => {
-      const taxa = _cartaoBRTipoPDV === 'debito' ? _taxaDebitoPDV : _taxaCreditoPDV;
-      const brl  = _cotacaoPDV > 0 ? ((total / _cotacaoPDV) * (1 + taxa / 100)).toFixed(2) : '---';
+      const taxa =
+        _cartaoBRTipoPDV === "debito" ? _taxaDebitoPDV : _taxaCreditoPDV;
+      const brl =
+        _cotacaoPDV > 0
+          ? ((total / _cotacaoPDV) * (1 + taxa / 100)).toFixed(2)
+          : "---";
       infoBox.innerHTML = `
         <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px">💳🇧🇷 Cartão Brasileiro</div>
         <div style="display:flex;gap:6px;margin-bottom:8px">
           <button type="button" onclick="_setPDVBRTipo('debito')"
             style="flex:1;padding:6px 4px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;
-                   border:2px solid ${_cartaoBRTipoPDV==='debito'?'#1a7a2e':'#ccc'};
-                   background:${_cartaoBRTipoPDV==='debito'?'#eafaf1':'#f8f9fa'};
-                   color:${_cartaoBRTipoPDV==='debito'?'#1a7a2e':'#555'}">
+                   border:2px solid ${_cartaoBRTipoPDV === "debito" ? "#1a7a2e" : "#ccc"};
+                   background:${_cartaoBRTipoPDV === "debito" ? "#eafaf1" : "#f8f9fa"};
+                   color:${_cartaoBRTipoPDV === "debito" ? "#1a7a2e" : "#555"}">
             Débito<br><small>${_taxaDebitoPDV.toFixed(2)}%</small></button>
           <button type="button" onclick="_setPDVBRTipo('credito')"
             style="flex:1;padding:6px 4px;border-radius:6px;font-weight:700;cursor:pointer;font-size:0.75rem;
-                   border:2px solid ${_cartaoBRTipoPDV==='credito'?'#1a7a2e':'#ccc'};
-                   background:${_cartaoBRTipoPDV==='credito'?'#eafaf1':'#f8f9fa'};
-                   color:${_cartaoBRTipoPDV==='credito'?'#1a7a2e':'#555'}">
+                   border:2px solid ${_cartaoBRTipoPDV === "credito" ? "#1a7a2e" : "#ccc"};
+                   background:${_cartaoBRTipoPDV === "credito" ? "#eafaf1" : "#f8f9fa"};
+                   color:${_cartaoBRTipoPDV === "credito" ? "#1a7a2e" : "#555"}">
             Crédito<br><small>${_taxaCreditoPDV.toFixed(2)}%</small></button>
         </div>
         <div style="text-align:center;font-size:1rem;font-weight:900;color:#1a7a2e">R$ ${brl}</div>`;
     };
-    window._setPDVBRTipo = (tipo) => { _cartaoBRTipoPDV = tipo; _renderCarBR(); };
+    window._setPDVBRTipo = (tipo) => {
+      _cartaoBRTipoPDV = tipo;
+      _renderCarBR();
+    };
     window._renderCarBRPDV = _renderCarBR;
     _renderCarBR();
   } else if (pag === "Pix" && total > 0) {
@@ -7892,12 +8085,12 @@ function adicionarPartePagamentoPDV() {
   const id = _multiContadorPDV;
   const ordinal = ["1ª", "2ª", "3ª", "4ª", "5ª"][id - 1] || `${id}ª`;
   const opts = [
-    { v: "Efetivo",      l: "💵 Efectivo" },
-    { v: "Cartao",       l: "💳 Tarjeta" },
-    { v: "CartaoBR",     l: "💳🇧🇷 Cartão BR" },
-    { v: "Pix",          l: "🟢 Pix" },
-    { v: "Transferencia",l: "🏦 Alias" },
-    { v: "QrPy",         l: "📱 QR Paraguay" },
+    { v: "Efetivo", l: "💵 Efectivo" },
+    { v: "Cartao", l: "💳 Tarjeta" },
+    { v: "CartaoBR", l: "💳🇧🇷 Cartão BR" },
+    { v: "Pix", l: "🟢 Pix" },
+    { v: "Transferencia", l: "🏦 Alias" },
+    { v: "QrPy", l: "📱 QR Paraguay" },
   ]
     .map((m) => `<option value="${m.v}">${m.l}</option>`)
     .join("");
@@ -7993,7 +8186,7 @@ function _coletarMultiPagamentoPDV() {
 
 async function salvarPedidoBalcao() {
   if (carrinhoPDV.length === 0 && !window._mesaAbertaId)
-    return alert(t('alert.carrinho_vazio'));
+    return alert(t("alert.carrinho_vazio"));
   if (carrinhoPDV.length === 0 && window._mesaAbertaId)
     return alert("Adicione ao menos 1 novo item antes de lançar.");
 
@@ -8004,9 +8197,12 @@ async function salvarPedidoBalcao() {
     document.getElementById("balcao-cliente").value.trim() || "Cliente";
   const tel = document.getElementById("balcao-telefone").value.trim() || "";
   let pag = document.getElementById("balcao-pag").value;
-  const pagFinalPDV = pag === 'CartaoBR'
-    ? (_cartaoBRTipoPDV === 'debito' ? 'Cartão BR - Débito' : 'Cartão BR - Crédito')
-    : pag;
+  const pagFinalPDV =
+    pag === "CartaoBR"
+      ? _cartaoBRTipoPDV === "debito"
+        ? "Cartão BR - Débito"
+        : "Cartão BR - Crédito"
+      : pag;
 
   const nomeFinal = mesa
     ? `MESA ${mesa} - ${cli}`
@@ -8081,7 +8277,8 @@ async function salvarPedidoBalcao() {
     const itensMerged = [...itensExistentes, ...novosItens];
     // Itens kg: preco já é o total pesado (preco_kg × peso), não multiplicar por qtd
     const novoTotal = itensMerged.reduce(
-      (acc, i) => acc + (i._isKg ? (i.preco || 0) : (i.preco || 0) * (i.qtd || 1)),
+      (acc, i) =>
+        acc + (i._isKg ? i.preco || 0 : (i.preco || 0) * (i.qtd || 1)),
       0,
     );
 
@@ -8189,11 +8386,11 @@ async function salvarPedidoBalcao() {
   if (_pdvCashbackUsando && tel) {
     const descCash = pdvGetCashbackDesconto(totalNovo);
     if (descCash > 0) await crmUsarCashback(tel, descCash);
-    _pdvCashbackUsando    = false;
+    _pdvCashbackUsando = false;
     _pdvCashbackDisponivel = 0;
-    document.getElementById('pdv-cashback-box').style.display = 'none';
+    document.getElementById("pdv-cashback-box").style.display = "none";
   }
- 
+
   // ── Cashback: gerar crédito pela nova compra ──────────────────
   if (tel) {
     await crmGerarCashback(tel, totalNovo, novoPedido?.id || null);
@@ -8667,7 +8864,7 @@ async function excluirUsuario(id, email) {
 // ═══════════════════════════════════════════════════════════════
 
 async function amCriarUsuario() {
-  if (perfilUsuario !== "adminMaster") return alert(t('alert.acesso_negado'));
+  if (perfilUsuario !== "adminMaster") return alert(t("alert.acesso_negado"));
   const email = document.getElementById("am-email")?.value?.trim();
   const nome = document.getElementById("am-nome")?.value?.trim();
   const senha = document.getElementById("am-senha")?.value;
@@ -9149,38 +9346,73 @@ async function confirmarEntregaFuncionario(pedidoId) {
   }
 }
 
-
 async function fecharTodasMesas() {
-  const { data, error } = await supa.from("pedidos")
+  const { data, error } = await supa
+    .from("pedidos")
     .select("id, cliente_nome, tipo_entrega, status")
-    .in("status", ["pendente","em_preparo","pronto_entrega","saiu_entrega"])
-    .in("tipo_entrega", ["balcao","retirada","local"]);
-  if (error || !data || data.length === 0) { alert("Nenhum pedido de Mesa/Retirada/Local em aberto."); return; }
-  const lista = data.map(p => `#${p.id} — ${p.cliente_nome||"Mesa"} (${p.tipo_entrega})`).join("\n");
-  if (!confirm(`Baixar ${data.length} pedido(s) Mesa/Retirada/Local?\n\n${lista}`)) return;
+    .in("status", ["pendente", "em_preparo", "pronto_entrega", "saiu_entrega"])
+    .in("tipo_entrega", ["balcao", "retirada", "local"]);
+  if (error || !data || data.length === 0) {
+    alert("Nenhum pedido de Mesa/Retirada/Local em aberto.");
+    return;
+  }
+  const lista = data
+    .map((p) => `#${p.id} — ${p.cliente_nome || "Mesa"} (${p.tipo_entrega})`)
+    .join("\n");
+  if (
+    !confirm(`Baixar ${data.length} pedido(s) Mesa/Retirada/Local?\n\n${lista}`)
+  )
+    return;
   const now = new Date().toISOString();
-  const { error: err } = await supa.from("pedidos")
-    .update({ status:"entregue", tempo_entregue:now })
-    .in("id", data.map(p => p.id));
-  if (err) { alert("Erro: "+err.message); return; }
+  const { error: err } = await supa
+    .from("pedidos")
+    .update({ status: "entregue", tempo_entregue: now })
+    .in(
+      "id",
+      data.map((p) => p.id),
+    );
+  if (err) {
+    alert("Erro: " + err.message);
+    return;
+  }
   alert(`✅ ${data.length} pedido(s) baixado(s)!`);
-  carregarPedidos(); carregarMonitorMesas();
+  carregarPedidos();
+  carregarMonitorMesas();
   if (typeof calcularFinanceiro === "function") calcularFinanceiro();
 }
 
 async function baixarTodosNaoDelivery() {
-  const { data, error } = await supa.from("pedidos")
+  const { data, error } = await supa
+    .from("pedidos")
     .select("id, cliente_nome, status")
-    .in("status", ["saiu_entrega","pronto_entrega"])
+    .in("status", ["saiu_entrega", "pronto_entrega"])
     .eq("tipo_entrega", "delivery");
-  if (error || !data || data.length === 0) { alert("Nenhum delivery para confirmar entrega."); return; }
-  const lista = data.map(p => `#${p.id} — ${p.cliente_nome||"Cliente"}`).join("\n");
-  if (!confirm(`Confirmar entrega de ${data.length} delivery(s)?\n\n${lista}`)) return;
+  if (error || !data || data.length === 0) {
+    alert("Nenhum delivery para confirmar entrega.");
+    return;
+  }
+  const lista = data
+    .map((p) => `#${p.id} — ${p.cliente_nome || "Cliente"}`)
+    .join("\n");
+  if (!confirm(`Confirmar entrega de ${data.length} delivery(s)?\n\n${lista}`))
+    return;
   const now = new Date().toISOString();
-  const { error: err } = await supa.from("pedidos")
-    .update({ status:"entregue", tempo_entregue:now, entrega_confirmada_em:now, confirmacao_tipo:"massa" })
-    .in("id", data.map(p => p.id));
-  if (err) { alert("Erro: "+err.message); return; }
+  const { error: err } = await supa
+    .from("pedidos")
+    .update({
+      status: "entregue",
+      tempo_entregue: now,
+      entrega_confirmada_em: now,
+      confirmacao_tipo: "massa",
+    })
+    .in(
+      "id",
+      data.map((p) => p.id),
+    );
+  if (err) {
+    alert("Erro: " + err.message);
+    return;
+  }
   alert(`✅ ${data.length} delivery(s) confirmado(s)!`);
   carregarPedidos();
   if (typeof calcularFinanceiro === "function") calcularFinanceiro();
@@ -9593,7 +9825,12 @@ let _inventarioItems = [];
 let _tipoAjuste = "add";
 
 async function carregarInventario() {
-  if (perfilUsuario !== "dono" && perfilUsuario !== "gerente" && perfilUsuario !== "adminMaster") return;
+  if (
+    perfilUsuario !== "dono" &&
+    perfilUsuario !== "gerente" &&
+    perfilUsuario !== "adminMaster"
+  )
+    return;
   const container = document.getElementById("inventario-lista");
   if (!container) return;
   container.innerHTML =
@@ -9974,8 +10211,11 @@ async function calcularFretePDV() {
   msg.innerHTML = '<span style="color:#888">Localizando...</span>';
 
   // ── Tenta extrair coordenadas do link colado no campo endereço ────────
-  const endVal = (document.getElementById("balcao-endereco")?.value || "").trim();
-  let lat = null, lng = null;
+  const endVal = (
+    document.getElementById("balcao-endereco")?.value || ""
+  ).trim();
+  let lat = null,
+    lng = null;
 
   if (endVal) {
     // Formatos comuns do Google Maps:
@@ -9992,14 +10232,19 @@ async function calcularFretePDV() {
     ];
     for (const rx of patterns) {
       const m = endVal.match(rx);
-      if (m) { lat = parseFloat(m[1]); lng = parseFloat(m[2]); break; }
+      if (m) {
+        lat = parseFloat(m[1]);
+        lng = parseFloat(m[2]);
+        break;
+      }
     }
   }
 
   // ── Se não extraiu do link, usa GPS do dispositivo ────────────────────
   if (lat === null || lng === null) {
     if (!navigator.geolocation) {
-      msg.innerHTML = '<span style="color:#e74c3c">Cole um link do Google Maps ou use um celular com GPS</span>';
+      msg.innerHTML =
+        '<span style="color:#e74c3c">Cole um link do Google Maps ou use um celular com GPS</span>';
       btn.disabled = false;
       btn.innerText = "📍 Rota";
       return;
@@ -10047,7 +10292,9 @@ async function calcularFretePDV() {
 
   // LIMITES_KM deve ser idêntico ao index.ts (Edge Function) para evitar
   // divergência entre o frete calculado no front e o validado no servidor.
-  const LIMITES_KM = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const LIMITES_KM = [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  ];
   let freteIndex = -1;
   for (let i = 0; i < LIMITES_KM.length; i++) {
     if (dist <= LIMITES_KM[i]) {
@@ -10095,57 +10342,124 @@ async function calcularFretePDV() {
 
 const _OB_STEPS = [
   {
-    id: 'identidade',
-    titulo: '🏪 Identidade da Loja',
-    descricao: 'Como seu restaurante vai aparecer para os clientes.',
+    id: "identidade",
+    titulo: "🏪 Identidade da Loja",
+    descricao: "Como seu restaurante vai aparecer para os clientes.",
     campos: [
-      { id: 'ob-nome',      label: 'Nome do restaurante *', tipo: 'text',  placeholder: 'Ex: Açaí do João',   db: 'nome_restaurante' },
-      { id: 'ob-descricao', label: 'Descrição curta',        tipo: 'text',  placeholder: 'Ex: O melhor açaí da cidade', db: 'descricao_loja' },
-      { id: 'ob-whatsapp',  label: 'WhatsApp (com DDI)',      tipo: 'text',  placeholder: 'Ex: 595981234567',   db: 'whatsapp_loja' },
-      { id: 'ob-logo',      label: 'URL do Logo',             tipo: 'url',   placeholder: 'https://...',        db: 'logo_url' },
-    ]
+      {
+        id: "ob-nome",
+        label: "Nome do restaurante *",
+        tipo: "text",
+        placeholder: "Ex: Açaí do João",
+        db: "nome_restaurante",
+      },
+      {
+        id: "ob-descricao",
+        label: "Descrição curta",
+        tipo: "text",
+        placeholder: "Ex: O melhor açaí da cidade",
+        db: "descricao_loja",
+      },
+      {
+        id: "ob-whatsapp",
+        label: "WhatsApp (com DDI)",
+        tipo: "text",
+        placeholder: "Ex: 595981234567",
+        db: "whatsapp_loja",
+      },
+      {
+        id: "ob-logo",
+        label: "URL do Logo",
+        tipo: "url",
+        placeholder: "https://...",
+        db: "logo_url",
+      },
+    ],
   },
   {
-    id: 'visual',
-    titulo: '🎨 Identidade Visual',
-    descricao: 'Cor principal que aparece no app do cliente.',
+    id: "visual",
+    titulo: "🎨 Identidade Visual",
+    descricao: "Cor principal que aparece no app do cliente.",
     campos: [
-      { id: 'ob-cor', label: 'Cor primária', tipo: 'color', placeholder: '#1a7a2e', db: 'cor_primaria',
+      {
+        id: "ob-cor",
+        label: "Cor primária",
+        tipo: "color",
+        placeholder: "#1a7a2e",
+        db: "cor_primaria",
         extra: `<input type="text" id="ob-cor-hex" maxlength="7" placeholder="#1a7a2e"
                   style="padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:0.9rem;width:120px;margin-left:8px"
                   oninput="var v=this.value;if(v.startsWith('#')&&v.length===7){document.getElementById('ob-cor').value=v;document.documentElement.style.setProperty('--primary',v);}">
-                <span style="font-size:0.8rem;color:#888;margin-left:8px">← ou digita o hex</span>` },
-    ]
+                <span style="font-size:0.8rem;color:#888;margin-left:8px">← ou digita o hex</span>`,
+      },
+    ],
   },
   {
-    id: 'localizacao',
-    titulo: '📍 Localização da Loja',
-    descricao: 'Coordenadas usadas para calcular o frete de entrega.',
+    id: "localizacao",
+    titulo: "📍 Localização da Loja",
+    descricao: "Coordenadas usadas para calcular o frete de entrega.",
     campos: [
-      { id: 'ob-lat', label: 'Latitude *',  tipo: 'text', placeholder: 'Ex: -25.2866',  db: 'coord_lat' },
-      { id: 'ob-lng', label: 'Longitude *', tipo: 'text', placeholder: 'Ex: -57.6470',  db: 'coord_lng' },
+      {
+        id: "ob-lat",
+        label: "Latitude *",
+        tipo: "text",
+        placeholder: "Ex: -25.2866",
+        db: "coord_lat",
+      },
+      {
+        id: "ob-lng",
+        label: "Longitude *",
+        tipo: "text",
+        placeholder: "Ex: -57.6470",
+        db: "coord_lng",
+      },
     ],
     dica: `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px;margin-top:12px;font-size:0.83rem">
       💡 <strong>Como pegar as coordenadas:</strong><br>
       Abra <a href="https://maps.google.com" target="_blank" style="color:#2980b9">Google Maps</a>,
       clique com o botão direito no seu endereço e copie os números que aparecem (Ex: -25.286, -57.647).
-    </div>`
+    </div>`,
   },
   {
-    id: 'pagamento',
-    titulo: '💳 Formas de Pagamento',
-    descricao: 'Configure PIX e Alias/Transferência para receber pagamentos.',
+    id: "pagamento",
+    titulo: "💳 Formas de Pagamento",
+    descricao: "Configure PIX e Alias/Transferência para receber pagamentos.",
     campos: [
-      { id: 'ob-pix',        label: 'Chave PIX',         tipo: 'text', placeholder: 'CPF, CNPJ, e-mail ou telefone', db: 'chave_pix' },
-      { id: 'ob-nome-pix',   label: 'Nome no PIX',       tipo: 'text', placeholder: 'Nome que aparece no QR Code',   db: 'nome_pix' },
-      { id: 'ob-alias',      label: 'Alias / Cuenta',    tipo: 'text', placeholder: 'banco@alias.com.py',           db: 'dados_alias' },
-      { id: 'ob-cotacao',    label: 'Cotação do Real (Gs)', tipo: 'number', placeholder: '1100',                    db: 'cotacao_real' },
-    ]
+      {
+        id: "ob-pix",
+        label: "Chave PIX",
+        tipo: "text",
+        placeholder: "CPF, CNPJ, e-mail ou telefone",
+        db: "chave_pix",
+      },
+      {
+        id: "ob-nome-pix",
+        label: "Nome no PIX",
+        tipo: "text",
+        placeholder: "Nome que aparece no QR Code",
+        db: "nome_pix",
+      },
+      {
+        id: "ob-alias",
+        label: "Alias / Cuenta",
+        tipo: "text",
+        placeholder: "banco@alias.com.py",
+        db: "dados_alias",
+      },
+      {
+        id: "ob-cotacao",
+        label: "Cotação do Real (Gs)",
+        tipo: "number",
+        placeholder: "1100",
+        db: "cotacao_real",
+      },
+    ],
   },
   {
-    id: 'horario',
-    titulo: '🕐 Horário de Funcionamento',
-    descricao: 'Configure o horário padrão. Pode afinar por dia depois em Configurações.',
+    id: "horario",
+    titulo: "🕐 Horário de Funcionamento",
+    descricao:
+      "Configure o horário padrão. Pode afinar por dia depois em Configurações.",
     campos: [],
     custom: `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
@@ -10161,7 +10475,7 @@ const _OB_STEPS = [
         </div>
       </div>
       <p style="font-size:0.78rem;color:#999;margin-top:8px">Este horário será aplicado a todos os dias da semana.</p>
-    `
+    `,
   },
 ];
 
@@ -10171,42 +10485,51 @@ let _obData = {};
 async function iniciarOnboarding() {
   // Só mostra se o banco não tiver nome configurado ainda
   try {
-    const { data } = await supa.from('configuracoes').select('nome_restaurante').maybeSingle();
+    const { data } = await supa
+      .from("configuracoes")
+      .select("nome_restaurante")
+      .maybeSingle();
     if (data?.nome_restaurante) return; // já configurado
-  } catch(_) { return; }
+  } catch (_) {
+    return;
+  }
 
   _obStep = 0;
   _obData = {};
   _obRender();
-  document.getElementById('modal-onboarding').style.display = 'flex';
+  document.getElementById("modal-onboarding").style.display = "flex";
 }
 
 function _obRender() {
-  const step    = _OB_STEPS[_obStep];
-  const total   = _OB_STEPS.length;
-  const isLast  = _obStep === total - 1;
+  const step = _OB_STEPS[_obStep];
+  const total = _OB_STEPS.length;
+  const isLast = _obStep === total - 1;
   const isFirst = _obStep === 0;
 
   // Dots
-  const dots = document.getElementById('ob-dots');
+  const dots = document.getElementById("ob-dots");
   if (dots) {
-    dots.innerHTML = _OB_STEPS.map((s, i) => `
-      <div style="height:6px;flex:1;border-radius:3px;background:${i <= _obStep ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.25)'}"></div>
-    `).join('');
+    dots.innerHTML = _OB_STEPS
+      .map(
+        (s, i) => `
+      <div style="height:6px;flex:1;border-radius:3px;background:${i <= _obStep ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)"}"></div>
+    `,
+      )
+      .join("");
   }
 
   // Step label
-  const lbl = document.getElementById('ob-step-label');
+  const lbl = document.getElementById("ob-step-label");
   if (lbl) lbl.textContent = `Passo ${_obStep + 1} de ${total}`;
 
   // Prev/Next buttons
-  const prev = document.getElementById('ob-btn-prev');
-  const next = document.getElementById('ob-btn-next');
-  if (prev) prev.style.visibility = isFirst ? 'hidden' : 'visible';
-  if (next) next.textContent = isLast ? '✅ Salvar & Concluir' : 'Próximo →';
+  const prev = document.getElementById("ob-btn-prev");
+  const next = document.getElementById("ob-btn-next");
+  if (prev) prev.style.visibility = isFirst ? "hidden" : "visible";
+  if (next) next.textContent = isLast ? "✅ Salvar & Concluir" : "Próximo →";
 
   // Body
-  const body = document.getElementById('ob-body');
+  const body = document.getElementById("ob-body");
   if (!body) return;
 
   let html = `
@@ -10215,17 +10538,17 @@ function _obRender() {
   `;
 
   // Campos padrão
-  (step.campos || []).forEach(c => {
-    const savedVal = _obData[c.db] || '';
-    if (c.tipo === 'color') {
+  (step.campos || []).forEach((c) => {
+    const savedVal = _obData[c.db] || "";
+    if (c.tipo === "color") {
       html += `
         <div style="margin-bottom:14px">
           <label style="font-size:0.82rem;font-weight:600;color:#555;display:block;margin-bottom:6px">${c.label}</label>
           <div style="display:flex;align-items:center;gap:8px">
-            <input type="color" id="${c.id}" value="${savedVal || '#1a7a2e'}"
+            <input type="color" id="${c.id}" value="${savedVal || "#1a7a2e"}"
               style="width:52px;height:38px;border:none;border-radius:8px;cursor:pointer;padding:2px"
               oninput="document.getElementById('ob-cor-hex').value=this.value;document.documentElement.style.setProperty('--primary',this.value)">
-            ${c.extra || ''}
+            ${c.extra || ""}
           </div>
         </div>`;
     } else {
@@ -10249,31 +10572,33 @@ function _obRender() {
   body.innerHTML = html;
 
   // Restaura valor cor hex se voltou ao passo
-  if (step.id === 'visual') {
-    const corVal = _obData['cor_primaria'] || '#1a7a2e';
-    const hexEl  = document.getElementById('ob-cor-hex');
+  if (step.id === "visual") {
+    const corVal = _obData["cor_primaria"] || "#1a7a2e";
+    const hexEl = document.getElementById("ob-cor-hex");
     if (hexEl) hexEl.value = corVal;
-    document.documentElement.style.setProperty('--primary', corVal);
+    document.documentElement.style.setProperty("--primary", corVal);
   }
 }
 
 function _obColetar() {
   const step = _OB_STEPS[_obStep];
 
-  (step.campos || []).forEach(c => {
+  (step.campos || []).forEach((c) => {
     const el = document.getElementById(c.id);
     if (el) _obData[c.db] = el.value.trim();
   });
 
   // Horário: monta grade semanal simples
-  if (step.id === 'horario') {
-    const abre  = document.getElementById('ob-hora-abre')?.value  || '10:00';
-    const fecha = document.getElementById('ob-hora-fecha')?.value || '23:00';
-    const dias  = ['seg','ter','qua','qui','sex','sab','dom'];
+  if (step.id === "horario") {
+    const abre = document.getElementById("ob-hora-abre")?.value || "10:00";
+    const fecha = document.getElementById("ob-hora-fecha")?.value || "23:00";
+    const dias = ["seg", "ter", "qua", "qui", "sex", "sab", "dom"];
     const grade = {};
-    dias.forEach(d => { grade[d] = { fechado: false, turnos: [{ abre, fecha }] }; });
-    _obData['horarios_semanais'] = grade;
-    _obData['loja_aberta'] = true;
+    dias.forEach((d) => {
+      grade[d] = { fechado: false, turnos: [{ abre, fecha }] };
+    });
+    _obData["horarios_semanais"] = grade;
+    _obData["loja_aberta"] = true;
   }
 }
 
@@ -10289,88 +10614,112 @@ function _obNext() {
 
 function _obPrev() {
   _obColetar();
-  if (_obStep > 0) { _obStep--; _obRender(); }
+  if (_obStep > 0) {
+    _obStep--;
+    _obRender();
+  }
 }
 
 function _obSkip() {
-  if (!confirm('Pular a configuração inicial? Você pode configurar depois em Configurações.')) return;
-  document.getElementById('modal-onboarding').style.display = 'none';
+  if (
+    !confirm(
+      "Pular a configuração inicial? Você pode configurar depois em Configurações.",
+    )
+  )
+    return;
+  document.getElementById("modal-onboarding").style.display = "none";
 }
 
 async function _obSalvar() {
-  const btn = document.getElementById('ob-btn-next');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  const btn = document.getElementById("ob-btn-next");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "⏳ Salvando...";
+  }
 
   try {
     // Prepara dados — filtra vazios
     const payload = {};
     Object.entries(_obData).forEach(([k, v]) => {
-      if (v !== '' && v !== null && v !== undefined) payload[k] = v;
+      if (v !== "" && v !== null && v !== undefined) payload[k] = v;
     });
 
     // Numérico
-    if (payload.cotacao_real) payload.cotacao_real = parseFloat(payload.cotacao_real) || 1100;
-    if (payload.coord_lat)    payload.coord_lat    = parseFloat(payload.coord_lat)    || 0;
-    if (payload.coord_lng)    payload.coord_lng    = parseFloat(payload.coord_lng)    || 0;
+    if (payload.cotacao_real)
+      payload.cotacao_real = parseFloat(payload.cotacao_real) || 1100;
+    if (payload.coord_lat)
+      payload.coord_lat = parseFloat(payload.coord_lat) || 0;
+    if (payload.coord_lng)
+      payload.coord_lng = parseFloat(payload.coord_lng) || 0;
 
     // Sincroniza logo_url e icone_url
     if (payload.logo_url) payload.icone_url = payload.logo_url;
 
-    const { error } = await supa.from('configuracoes').update(payload).gt('id', 0);
+    const { error } = await supa
+      .from("configuracoes")
+      .update(payload)
+      .gt("id", 0);
 
     if (error) throw new Error(error.message);
 
     // Aplica cor imediatamente
-    if (payload.cor_primaria) document.documentElement.style.setProperty('--primary', payload.cor_primaria);
+    if (payload.cor_primaria)
+      document.documentElement.style.setProperty(
+        "--primary",
+        payload.cor_primaria,
+      );
 
-    document.getElementById('modal-onboarding').style.display = 'none';
+    document.getElementById("modal-onboarding").style.display = "none";
 
     // Toast de sucesso
-    _pdvToast?.('✅ Configuração salva! O app já reflete os dados.') ||
-      alert('✅ Configuração inicial salva com sucesso!');
+    _pdvToast?.("✅ Configuração salva! O app já reflete os dados.") ||
+      alert("✅ Configuração inicial salva com sucesso!");
 
     // Recarrega a aba de configurações se estiver aberta
-    if (document.getElementById('configuracoes')?.classList.contains('active')) {
+    if (
+      document.getElementById("configuracoes")?.classList.contains("active")
+    ) {
       carregarConfiguracoes();
     }
 
     // Atualiza brand
     if (payload.nome_restaurante) {
-      const b = document.getElementById('brand-text');
-      if (b) b.textContent = payload.nome_restaurante.toUpperCase() + ' ADMIN';
+      const b = document.getElementById("brand-text");
+      if (b) b.textContent = payload.nome_restaurante.toUpperCase() + " ADMIN";
       NOME_RESTAURANTE = payload.nome_restaurante;
     }
-
-  } catch(e) {
-    alert('Erro ao salvar: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Salvar & Concluir'; }
+  } catch (e) {
+    alert("Erro ao salvar: " + e.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "✅ Salvar & Concluir";
+    }
   }
 }
 
 // Chamado no DOMContentLoaded após auth — só mostra se banco não configurado
 // (injeta no fluxo de inicialização existente)
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   // Aguarda auth (1.5s) para não conflitar com o auth-overlay
   setTimeout(async () => {
-    if (perfilUsuario && ['dono', 'adminMaster'].includes(perfilUsuario)) {
+    if (perfilUsuario && ["dono", "adminMaster"].includes(perfilUsuario)) {
       await iniciarOnboarding();
     }
   }, 1500);
 });
 
 function ftMostrarPanel(panel) {
-  ['insumos', 'fichas'].forEach(p => {
+  ["insumos", "fichas"].forEach((p) => {
     const el = document.getElementById(`ft-panel-${p}`);
     const btn = document.getElementById(`ft-nav-${p}`);
-    if (el)  el.style.display  = p === panel ? 'block' : 'none';
+    if (el) el.style.display = p === panel ? "block" : "none";
     if (btn) {
-      btn.classList.toggle('btn-primary',   p === panel);
-      btn.classList.toggle('btn-secondary', p !== panel);
+      btn.classList.toggle("btn-primary", p === panel);
+      btn.classList.toggle("btn-secondary", p !== panel);
     }
   });
 }
- 
- 
+
 // ─────────────────────────────────────────────────────────────
 //  PATCH 7 — Editar/Excluir Despesas (porta da aplicação-modelo)
 //  Se estas funções NÃO existirem no seu admin.js atual, adicione-as:
@@ -10378,53 +10727,76 @@ function ftMostrarPanel(panel) {
 function abrirEditarDespesa(dadosEncoded) {
   try {
     const d = JSON.parse(decodeURIComponent(dadosEncoded));
-    document.getElementById('edit-despesa-id').value       = d.id;
-    document.getElementById('edit-despesa-valor').value    = d.valor;
-    document.getElementById('edit-despesa-desc').value     = d.descricao;
-    const tipoSel = document.getElementById('edit-despesa-tipo');
-    if (tipoSel) tipoSel.value = d.tipo_despesa || 'despesas_gerais';
-    const outroBox   = document.getElementById('edit-box-outro');
-    const outroInput = document.getElementById('edit-despesa-outro');
-    if (d.tipo_despesa === 'outro') {
-      if (outroBox)   outroBox.style.display = 'block';
-      if (outroInput) outroInput.value = d.descricao_outro || '';
+    document.getElementById("edit-despesa-id").value = d.id;
+    document.getElementById("edit-despesa-valor").value = d.valor;
+    document.getElementById("edit-despesa-desc").value = d.descricao;
+    const tipoSel = document.getElementById("edit-despesa-tipo");
+    if (tipoSel) tipoSel.value = d.tipo_despesa || "despesas_gerais";
+    const outroBox = document.getElementById("edit-box-outro");
+    const outroInput = document.getElementById("edit-despesa-outro");
+    if (d.tipo_despesa === "outro") {
+      if (outroBox) outroBox.style.display = "block";
+      if (outroInput) outroInput.value = d.descricao_outro || "";
     } else {
-      if (outroBox)   outroBox.style.display = 'none';
-      if (outroInput) outroInput.value = '';
+      if (outroBox) outroBox.style.display = "none";
+      if (outroInput) outroInput.value = "";
     }
-    document.getElementById('modal-editar-despesa').style.display = 'flex';
-  } catch(e) {
-    alert('Erro ao abrir edição: ' + e.message);
+    document.getElementById("modal-editar-despesa").style.display = "flex";
+  } catch (e) {
+    alert("Erro ao abrir edição: " + e.message);
   }
 }
- 
+
 async function salvarEdicaoDespesa() {
-  const id    = document.getElementById('edit-despesa-id').value;
-  const valor = parseFloat(document.getElementById('edit-despesa-valor').value);
-  const desc  = document.getElementById('edit-despesa-desc').value.trim();
-  const tipo  = document.getElementById('edit-despesa-tipo').value;
- 
-  if (!id || !valor || valor <= 0) { alert('Preencha o valor corretamente.'); return; }
- 
-  let descOutro = null;
-  if (tipo === 'outro') {
-    descOutro = document.getElementById('edit-despesa-outro')?.value?.trim() || '';
-    if (!descOutro) { alert('Descreva o tipo da despesa.'); return; }
+  const id = document.getElementById("edit-despesa-id").value;
+  const valor = parseFloat(document.getElementById("edit-despesa-valor").value);
+  const desc = document.getElementById("edit-despesa-desc").value.trim();
+  const tipo = document.getElementById("edit-despesa-tipo").value;
+
+  if (!id || !valor || valor <= 0) {
+    alert("Preencha o valor corretamente.");
+    return;
   }
- 
-  const { error } = await supa.from('movimentacoes_caixa')
-    .update({ valor, descricao: desc, tipo_despesa: tipo, descricao_outro: descOutro })
-    .eq('id', id);
- 
-  if (error) { alert('Erro ao salvar: ' + error.message); return; }
-  fecharModal('modal-editar-despesa');
+
+  let descOutro = null;
+  if (tipo === "outro") {
+    descOutro =
+      document.getElementById("edit-despesa-outro")?.value?.trim() || "";
+    if (!descOutro) {
+      alert("Descreva o tipo da despesa.");
+      return;
+    }
+  }
+
+  const { error } = await supa
+    .from("movimentacoes_caixa")
+    .update({
+      valor,
+      descricao: desc,
+      tipo_despesa: tipo,
+      descricao_outro: descOutro,
+    })
+    .eq("id", id);
+
+  if (error) {
+    alert("Erro ao salvar: " + error.message);
+    return;
+  }
+  fecharModal("modal-editar-despesa");
   calcularFinanceiro();
 }
- 
+
 async function excluirDespesa(id) {
-  if (!confirm('Excluir esta despesa? Esta ação não pode ser desfeita.')) return;
-  const { error } = await supa.from('movimentacoes_caixa').delete().eq('id', id);
-  if (error) { alert('Erro ao excluir: ' + error.message); return; }
+  if (!confirm("Excluir esta despesa? Esta ação não pode ser desfeita."))
+    return;
+  const { error } = await supa
+    .from("movimentacoes_caixa")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    alert("Erro ao excluir: " + error.message);
+    return;
+  }
   calcularFinanceiro();
 }
 // ══════════════════════════════════════════════════════════════
@@ -10436,23 +10808,23 @@ async function excluirDespesa(id) {
 async function verificarContratoAdmin(session) {
   try {
     const { data: perfil } = await supa
-      .from('perfis_acesso')
-      .select('cargo')
-      .eq('id', session.user.id)
+      .from("perfis_acesso")
+      .select("cargo")
+      .eq("id", session.user.id)
       .maybeSingle();
 
-    const cargo = perfil?.cargo || 'dono';
+    const cargo = perfil?.cargo || "dono";
 
     // adminMaster e outros cargos não precisam assinar
-    if (cargo === 'adminMaster') return;
-    if (cargo !== 'dono') return;
+    if (cargo === "adminMaster") return;
+    if (cargo !== "dono") return;
 
     // Verifica se o dono já aceitou
     const { data } = await supa
-      .from('contratos_aceites')
-      .select('id')
-      .eq('usuario_id', session.user.id)
-      .eq('aceito', true)
+      .from("contratos_aceites")
+      .select("id")
+      .eq("usuario_id", session.user.id)
+      .eq("aceito", true)
       .maybeSingle();
 
     if (!data) {
@@ -10461,32 +10833,46 @@ async function verificarContratoAdmin(session) {
     }
   } catch (e) {
     // Fail-open: se erro ao verificar, não bloqueia o admin
-    console.warn('verificarContratoAdmin error:', e.message);
+    console.warn("verificarContratoAdmin error:", e.message);
   }
 }
 
 function _admMostrarContratoOverlay(session) {
-  const overlay = document.getElementById('contrato-admin-overlay');
+  const overlay = document.getElementById("contrato-admin-overlay");
   if (!overlay) {
     // Fallback se o HTML não foi atualizado
-    alert('Você precisa aceitar o contrato de serviços para continuar.');
-    supa.auth.signOut().then(() => { window.location.href = 'login.html'; });
+    alert("Você precisa aceitar o contrato de serviços para continuar.");
+    supa.auth.signOut().then(() => {
+      window.location.href = "login.html";
+    });
     return;
   }
 
-  const hoje  = new Date();
-  const meses = ['janeiro','fevereiro','março','abril','maio','junho',
-                 'julho','agosto','setembro','outubro','novembro','dezembro'];
-  const el = id => document.getElementById(id);
-  if (el('adm-ct-dia'))  el('adm-ct-dia').textContent  = hoje.getDate();
-  if (el('adm-ct-mes'))  el('adm-ct-mes').textContent  = meses[hoje.getMonth()];
-  if (el('adm-ct-ano'))  el('adm-ct-ano').textContent  = hoje.getFullYear();
+  const hoje = new Date();
+  const meses = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
+  const el = (id) => document.getElementById(id);
+  if (el("adm-ct-dia")) el("adm-ct-dia").textContent = hoje.getDate();
+  if (el("adm-ct-mes")) el("adm-ct-mes").textContent = meses[hoje.getMonth()];
+  if (el("adm-ct-ano")) el("adm-ct-ano").textContent = hoje.getFullYear();
 
   window._admContratoSession = session;
-  overlay.style.display = 'flex';
+  overlay.style.display = "flex";
 
   setTimeout(() => {
-    const scrollArea = el('adm-contrato-scroll');
+    const scrollArea = el("adm-contrato-scroll");
     if (scrollArea) scrollArea.scrollTop = 0;
   }, 100);
 }
@@ -10497,44 +10883,47 @@ function _admMostrarContratoOverlay(session) {
 let _admContratoScrollCompleto = false;
 
 function admOnScrollContrato() {
-  const area = document.getElementById('adm-contrato-scroll');
-  const bar  = document.getElementById('adm-contrato-bar');
-  const hint = document.getElementById('adm-scroll-hint');
+  const area = document.getElementById("adm-contrato-scroll");
+  const bar = document.getElementById("adm-contrato-bar");
+  const hint = document.getElementById("adm-scroll-hint");
   if (!area) return;
 
-  const pct = Math.min(100, Math.round(
-    (area.scrollTop / (area.scrollHeight - area.clientHeight)) * 100
-  ));
-  if (bar) bar.style.width = pct + '%';
+  const pct = Math.min(
+    100,
+    Math.round(
+      (area.scrollTop / (area.scrollHeight - area.clientHeight)) * 100,
+    ),
+  );
+  if (bar) bar.style.width = pct + "%";
 
   if (pct >= 90 && !_admContratoScrollCompleto) {
     _admContratoScrollCompleto = true;
-    const chk = document.getElementById('adm-chk-aceite');
+    const chk = document.getElementById("adm-chk-aceite");
     if (chk) chk.disabled = false;
-    if (hint) hint.style.display = 'none';
+    if (hint) hint.style.display = "none";
   }
 }
 
 function admAtualizarNome(val) {
-  const el = document.getElementById('adm-ct-nombre');
-  if (el) el.textContent = val || '[Nome do Cliente]';
+  const el = document.getElementById("adm-ct-nombre");
+  if (el) el.textContent = val || "[Nome do Cliente]";
 }
 
 function admAtualizarDoc(val) {
-  const el = document.getElementById('adm-ct-doc');
-  if (el) el.textContent = val || '[Documento]';
+  const el = document.getElementById("adm-ct-doc");
+  if (el) el.textContent = val || "[Documento]";
 }
 
 function admToggleBtnAceitar() {
-  const chk  = document.getElementById('adm-chk-aceite');
-  const btn  = document.getElementById('adm-btn-aceitar');
-  const nome = document.getElementById('adm-c-nome')?.value?.trim();
-  const doc  = document.getElementById('adm-c-doc')?.value?.trim();
-  const ok   = chk?.checked && nome && doc;
+  const chk = document.getElementById("adm-chk-aceite");
+  const btn = document.getElementById("adm-btn-aceitar");
+  const nome = document.getElementById("adm-c-nome")?.value?.trim();
+  const doc = document.getElementById("adm-c-doc")?.value?.trim();
+  const ok = chk?.checked && nome && doc;
   if (btn) {
-    btn.disabled      = !ok;
-    btn.style.opacity = ok ? '1' : '0.45';
-    btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+    btn.disabled = !ok;
+    btn.style.opacity = ok ? "1" : "0.45";
+    btn.style.cursor = ok ? "pointer" : "not-allowed";
   }
 }
 
@@ -10542,47 +10931,64 @@ async function admAceitarContrato() {
   const session = window._admContratoSession;
   if (!session) return;
 
-  const nome = document.getElementById('adm-c-nome')?.value?.trim();
-  const doc  = document.getElementById('adm-c-doc')?.value?.trim();
+  const nome = document.getElementById("adm-c-nome")?.value?.trim();
+  const doc = document.getElementById("adm-c-doc")?.value?.trim();
 
-  if (!nome || !doc) { alert('Preencha seu nome completo e RUC/C.I. para assinar.'); return; }
+  if (!nome || !doc) {
+    alert("Preencha seu nome completo e RUC/C.I. para assinar.");
+    return;
+  }
 
-  const btn = document.getElementById('adm-btn-aceitar');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrando assinatura...'; }
+  const btn = document.getElementById("adm-btn-aceitar");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "⏳ Registrando assinatura...";
+  }
 
   try {
-    let ip = '';
+    let ip = "";
     try {
-      const r = await fetch('https://api.ipify.org?format=json');
-      ip = (await r.json()).ip || '';
-    } catch(_) {}
+      const r = await fetch("https://api.ipify.org?format=json");
+      ip = (await r.json()).ip || "";
+    } catch (_) {}
 
-    const { error } = await supa.from('contratos_aceites').insert([{
-      usuario_id:     session.user.id,
-      aceito:         true,
-      nome_assinante: nome,
-      doc_assinante:  doc,
-      ip_assinante:   ip,
-      user_agent:     navigator.userAgent,
-      aceito_em:      new Date().toISOString(),
-    }]);
+    const { error } = await supa.from("contratos_aceites").insert([
+      {
+        usuario_id: session.user.id,
+        aceito: true,
+        nome_assinante: nome,
+        doc_assinante: doc,
+        ip_assinante: ip,
+        user_agent: navigator.userAgent,
+        aceito_em: new Date().toISOString(),
+      },
+    ]);
 
     if (error) {
       // Pode já existir — tenta update
-      if (error.code === '23505' || error.message?.includes('duplicate')) {
-        await supa.from('contratos_aceites')
-          .update({ aceito: true, nome_assinante: nome, doc_assinante: doc, aceito_em: new Date().toISOString() })
-          .eq('usuario_id', session.user.id);
+      if (error.code === "23505" || error.message?.includes("duplicate")) {
+        await supa
+          .from("contratos_aceites")
+          .update({
+            aceito: true,
+            nome_assinante: nome,
+            doc_assinante: doc,
+            aceito_em: new Date().toISOString(),
+          })
+          .eq("usuario_id", session.user.id);
       } else {
         throw error;
       }
     }
 
-    const overlay = document.getElementById('contrato-admin-overlay');
-    if (overlay) overlay.style.display = 'none';
-    console.log('✅ Contrato aceito com sucesso.');
-  } catch(e) {
-    alert('Erro ao registrar assinatura: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '✍️ ASSINAR E CONTINUAR'; }
+    const overlay = document.getElementById("contrato-admin-overlay");
+    if (overlay) overlay.style.display = "none";
+    console.log("✅ Contrato aceito com sucesso.");
+  } catch (e) {
+    alert("Erro ao registrar assinatura: " + e.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "✍️ ASSINAR E CONTINUAR";
+    }
   }
 }
