@@ -11,13 +11,13 @@
   "lang": "pt-BR",
   "icons": [
     {
-      "src": "https://SEU_PROJETO.supabase.co/storage/v1/object/public/produtos/icone-loja.jpg",
+      "src": "https://crjuqiwhgqpzmkyyzgvn.supabase.co/storage/v1/object/public/produtos/icone-loja.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "https://SEU_PROJETO.supabase.co/storage/v1/object/public/produtos/icone-loja.jpg",
+      "src": "https://crjuqiwhgqpzmkyyzgvn.supabase.co/storage/v1/object/public/produtos/icone-loja.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any maskable"
@@ -34,7 +34,7 @@
       "url": "/index.html",
       "icons": [
         {
-          "src": "https://SEU_PROJETO.supabase.co/storage/v1/object/public/produtos/icone-loja.jpg",
+          "src": "https://crjuqiwhgqpzmkyyzgvn.supabase.co/storage/v1/object/public/produtos/icone-loja.jpg",
           "sizes": "96x96"
         }
       ]
