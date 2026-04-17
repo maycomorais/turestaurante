@@ -681,12 +681,16 @@ async function renderMenu() {
     const img =
       item.img || "https://cdn-icons-png.flaticon.com/512/2252/2252075.png";
     const cfg = item.montagem;
-    const tipo =
-      cfg && !Array.isArray(cfg) && cfg.__tipo
-        ? cfg.__tipo
-        : item.e_montavel
-          ? "montavel"
-          : "padrao";
+    let tipo = "padrao";
+    if (cfg && typeof cfg === "object" && !Array.isArray(cfg)) {
+      if (cfg.__tipo) tipo = cfg.__tipo;
+      else if (cfg.pizza) tipo = "pizza";
+      else if (cfg.almoco) tipo = "almoco";
+      else if (cfg.variacoes) tipo = "variacoes";
+    }
+    if (tipo === "padrao" && item.e_montavel) tipo = "montavel";
+    if (tipo === "padrao" && Array.isArray(cfg) && cfg.length > 0)
+      tipo = "montavel";
 
     let precoLabel = `Gs ${item.preco.toLocaleString("es-PY")}`;
     if (
@@ -697,6 +701,21 @@ async function renderMenu() {
     ) {
       const precos = cfg.variacoes
         .map((v) => v.preco || 0)
+        .filter((p) => p > 0);
+      if (precos.length > 0) {
+        const min = Math.min(...precos);
+        precoLabel = `<span style="font-size:0.72rem;font-weight:500;opacity:0.7">A partir de</span> Gs ${min.toLocaleString("es-PY")}`;
+      }
+    }
+    if (
+      tipo === "pizza" &&
+      cfg &&
+      cfg.pizza &&
+      cfg.pizza.tamanhos &&
+      cfg.pizza.tamanhos.length > 0
+    ) {
+      const precos = cfg.pizza.tamanhos
+        .map((t) => t.preco || 0)
         .filter((p) => p > 0);
       if (precos.length > 0) {
         const min = Math.min(...precos);
@@ -1044,7 +1063,7 @@ function _selecionarDivisao(n) {
 
   // Filtra sabores pelo tipo (Salgada/Doce) se definido
   const saboresFiltrados = (p.sabores || []).filter(
-    (s) => !s.tipo || !p.tipos || p.tipos.length <= 1 || true,
+    (s) => !s.tipo || !p.tipos || p.tipos.length <= 1,
   );
 
   // Gera HTML para escolha de cada slot de sabor
@@ -1073,7 +1092,7 @@ function _selecionarDivisao(n) {
           ${s.img ? `<img src="${s.img}" class="pizza-sabor-img" alt="${s.nome}">` : `<div class="pizza-sabor-emoji">🍕</div>`}
           <div class="pizza-sabor-info">
             <div class="pizza-sabor-nome">${s.nome}</div>
-            ${s.preco ? `<div class="pizza-sabor-preco">Gs ${s.preco.toLocaleString("es-PY")}</div>` : ""}
+            ${s.preco ? `<div class="pizza-sabor-preco">Gs ${(s.preco || 0).toLocaleString("es-PY")}</div>` : ""}
           </div>
         </button>`;
         })
