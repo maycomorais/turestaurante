@@ -1,4 +1,4 @@
-const CACHE_NAME = "turestaurante-v2";
+const CACHE_NAME = "turestaurante-v3";
 
 const BLOCKED_ORIGINS = [
   "instagram.",
@@ -11,6 +11,7 @@ const BLOCKED_ORIGINS = [
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
+  "/manifest.json",
   "/admin.html",
   "/admin.css",
   "/admin.js",
