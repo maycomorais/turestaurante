@@ -1,4 +1,10 @@
-const CACHE_NAME = "turestaurante-v4";
+// ─────────────────────────────────────────────────────────────
+//  Service Worker — versão bump força invalidação de cache.
+//  Sempre que fizer deploy de novo código:
+//    1. Incremente CACHE_NAME (ex: v7, v8…)
+//    2. O SW antigo detecta a diferença no activate e apaga os caches velhos.
+// ─────────────────────────────────────────────────────────────
+const CACHE_NAME = "turestaurante-v7.2"; // ← bump aqui a cada deploy
 
 const BLOCKED_ORIGINS = [
   "instagram.",
@@ -25,7 +31,26 @@ const ASSETS_TO_CACHE = [
   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
 ];
 
+// Arquivos JS/HTML principais: sempre Network-First (nunca ficam presos em cache)
+const NETWORK_FIRST = [
+  "/app.js",
+  "/admin.js",
+  "/admin.html",
+  "/admin.css",
+  "/index.html",
+  "/atend.html",
+  "/turnos.html",
+  "/ficha-tecnica.js",
+  "/estatisticas.js",
+  "/crm.js",
+  "/filiais.js",
+  "/mensalistas.js",
+  "/supabaseClient.js",
+  "/style.css",
+];
+
 self.addEventListener("install", (event) => {
+  // Assume controle imediatamente sem esperar aba fechar
   self.skipWaiting();
   event.waitUntil(
     caches
@@ -44,22 +69,21 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)),
+          // Apaga TODOS os caches antigos (qualquer nome diferente do atual)
+          keys
+            .filter((k) => k !== CACHE_NAME)
+            .map((k) => {
+              console.log("[SW] Removendo cache antigo:", k);
+              return caches.delete(k);
+            }),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(() => {
+        console.log("[SW] Cache atualizado para:", CACHE_NAME);
+        return self.clients.claim();
+      }),
   );
 });
-
-// Arquivos JS/HTML principais: sempre Network-First (nunca ficam presos em cache)
-const NETWORK_FIRST = [
-  "/app.js",
-  "/admin.js",
-  "/admin.html",
-  "/index.html",
-  "/atend.html",
-  "/turnos.html",
-];
 
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
@@ -93,7 +117,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache-First para assets estáticos (CSS, imagens, fontes)
+  // Cache-First para assets estáticos (imagens, fontes CDN)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -116,7 +140,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Permite que o novo SW assuma o controle imediatamente
+// Permite que o novo SW assuma o controle imediatamente via postMessage
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
@@ -148,7 +172,7 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: data.icon || "/img/icon-192.png",
       badge: data.badge || "/img/icon-192.png",
-      tag: data.tag || "pedido-update", // substitui notificação anterior do mesmo pedido
+      tag: data.tag || "pedido-update",
       renotify: true,
       data: { url: data.url || "/" },
     }),
@@ -163,13 +187,11 @@ self.addEventListener("notificationclick", (event) => {
     clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
-        // Se o app já está aberto, foca nele
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && "focus" in client) {
             return client.focus();
           }
         }
-        // Caso contrário, abre uma nova janela
         if (clients.openWindow) return clients.openWindow(targetUrl);
       }),
   );

@@ -27,7 +27,24 @@ let _perfilId = null; // UUID do usuário logado
 let _perfilNome = null; // nome_display do usuário logado
 let audioHabilitado = false; // Controle de permissão do navegador
 
+const ADMIN_APP_VERSION = "2026-04-17-v1";
+const ADMIN_APP_STORAGE_KEYS = [
+  "app_lastTab",
+  "app_lastSubTab",
+  "app_pdv_aba",
+  "app_sidebar_collapsed",
+];
+
+function resetAdminStorageOnVersionChange() {
+  const storedVersion = localStorage.getItem("admin_app_version");
+  if (storedVersion !== ADMIN_APP_VERSION) {
+    ADMIN_APP_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+    localStorage.setItem("admin_app_version", ADMIN_APP_VERSION);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
+  resetAdminStorageOnVersionChange();
   // Recupera a última aba — mas só restaura depois do auth carregar
   // Para não disparar alert('Acesso restrito') antes de perfilUsuario estar definido,
   // começa sempre no dashboard e restaura a aba real após o login
@@ -278,9 +295,9 @@ function showTab(tabId, event) {
     if (tabId === "categorias") showSubTab("lista-categorias-wrapper");
     else if (tabId === "motoboys") showSubTab("lista-motos-wrapper");
     else {
-      const savedSub = localStorage.getItem("app_lastSubTab");
-      console.log("Saved sub tab:", savedSub);
-      showSubTab(savedSub || "lista-produtos-wrapper"); // Restaura a última sub-aba ou Padrão
+      // Clique direto em "Produtos": sempre abre a lista de produtos,
+      // ignorando qualquer sub-aba salva de navegação anterior (ex: Categorias).
+      showSubTab("lista-produtos-wrapper");
     }
   }
 
@@ -2580,10 +2597,13 @@ function enviarRotaZap() {
 // =========================================
 // Cache dos produtos para filtro local
 let _todosProdutos = [];
+let _produtosMap = {}; // mapa id→produto para onclick seguro sem JSON inline
 
 async function carregarProdutos() {
   const { data } = await supa.from("produtos").select("*").order("nome");
   _todosProdutos = data || [];
+  _produtosMap = {};
+  _todosProdutos.forEach(p => { _produtosMap[p.id] = p; });
   renderizarCardsProdutos(_todosProdutos);
   // Só recarrega o select de categorias se o modal de produto estiver fechado
   const modalAberto =
@@ -2669,9 +2689,7 @@ function renderizarCardsProdutos(lista) {
         ? `<span title="${extrasQtd} adicionais" style="font-size:0.7rem;color:#3498db;font-weight:700">➕${extrasQtd}</span>`
         : "";
 
-    const pJson = JSON.stringify(p)
-      .replace(/'/g, "&apos;")
-      .replace(/"/g, "&quot;");
+    // produto referenciado pelo id via _produtosMap (sem JSON inline no onclick)
 
     const card = document.createElement("div");
     card.className = `produto-card${!p.ativo ? " pausado" : ""}`;
@@ -2693,7 +2711,7 @@ function renderizarCardsProdutos(lista) {
         <div class="produto-card-preco">Gs ${(p.preco || 0).toLocaleString("es-PY")}</div>
       </div>
       <div class="produto-card-actions">
-        <button class="btn btn-sm btn-primary" onclick='editarProduto(${pJson})'>
+        <button class="btn btn-sm btn-primary" onclick="editarProdutoById(${p.id})">
           <i class="fas fa-edit"></i> Editar
         </button>
         <button class="btn btn-sm btn-info" onclick="duplicarProduto(${p.id})" title="Duplicar produto">
@@ -2711,6 +2729,11 @@ function renderizarCardsProdutos(lista) {
     `;
     grid.appendChild(card);
   });
+}
+
+function editarProdutoById(id) {
+  const p = _produtosMap[id];
+  if (p) editarProduto(p);
 }
 
 function editarProduto(p) {
@@ -2857,12 +2880,15 @@ async function salvarProduto() {
       document.querySelectorAll(".pizza-sabor-row").forEach((row) => {
         const nome = row.querySelector('[data-f="snome"]').value.trim();
         if (!nome) return;
+        const toggleBtn = row.querySelector(".pizza-sabor-toggle-ativo");
+        const ativo = !toggleBtn || toggleBtn.dataset.ativo !== "false";
         sabores.push({
           nome,
-          desc: row.querySelector('[data-f="sdesc"]')?.value?.trim() || "",
-          tipo: row.querySelector('[data-f="stipo"]').value,
-          img: row.querySelector('[data-f="simg"]')?.value || "",
+          desc:  row.querySelector('[data-f="sdesc"]')?.value?.trim() || "",
+          tipo:  row.querySelector('[data-f="stipo"]').value,
+          img:   row.querySelector('[data-f="simg"]')?.value || "",
           preco: 0,
+          ativo,
         });
       });
 
@@ -3262,6 +3288,7 @@ async function abrirModalProduto(produto = null, tipoInicial = null) {
         if (pizzaCfg.sabores && pizzaCfg.sabores.length > 0) {
           document.getElementById("pizza-sabores-lista").innerHTML = "";
           pizzaCfg.sabores.forEach((s) => addPizzaSabor(s));
+          // Drag já é vinculado dentro de addPizzaSabor
         }
       }
       // ── SHAKE ──
@@ -3651,34 +3678,95 @@ function addPizzaSabor(dados = {}) {
   const tipos = _pizzaTiposAtuais();
   const row = document.createElement("div");
   row.className = "pizza-sabor-row";
-  const imgSrc = dados.img || "";
+  row.draggable = true;
+  const imgSrc   = dados.img || "";
+  const isAtivo  = dados.ativo !== false; // default true
   row.innerHTML = `
     <div class="pizza-sabor-main" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-      <input data-f="snome" class="form-control" value="${dados.nome || ""}" placeholder="Nome do sabor" style="flex:2;min-width:140px">
-      <select data-f="stipo" class="form-control pizza-sabor-tipo" style="flex:1;min-width:110px">
+      <span class="drag-handle" title="Arrastar para reordenar"
+        style="cursor:grab;font-size:1.1rem;color:#aaa;padding:0 4px;user-select:none">⠿</span>
+      <input data-f="snome" class="form-control" value="${dados.nome || ""}" placeholder="Nome do sabor" style="flex:2;min-width:120px">
+      <select data-f="stipo" class="form-control pizza-sabor-tipo" style="flex:1;min-width:100px">
         ${
           tipos.length
-            ? tipos
-                .map(
-                  (t) =>
-                    `<option value="${t}" ${dados.tipo === t ? "selected" : ""}>${t}</option>`,
-                )
-                .join("")
+            ? tipos.map(t =>
+                `<option value="${t}" ${dados.tipo === t ? "selected" : ""}>${t}</option>`
+              ).join("")
             : `<option value="${dados.tipo || ""}">${dados.tipo || "—"}</option>`
         }
       </select>
-      <button class="btn btn-sm btn-danger" onclick="this.closest('.pizza-sabor-row').remove()">✕</button>
+      <button type="button" class="btn btn-sm pizza-sabor-toggle-ativo"
+        data-ativo="${isAtivo}"
+        style="background:${isAtivo ? "#27ae60" : "#e74c3c"};color:#fff;border:none;
+               border-radius:6px;padding:4px 9px;cursor:pointer;font-size:0.78rem;white-space:nowrap"
+        onclick="pizzaSaborToggleAtivo(this)">
+        ${isAtivo ? "✅ Ativo" : "⏸ Pausado"}
+      </button>
+      <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.pizza-sabor-row').remove()">✕</button>
     </div>
     <textarea data-f="sdesc" class="form-control" rows="1" placeholder="Descrição (opcional)" style="margin-bottom:6px">${dados.desc || ""}</textarea>
     <div style="display:flex;gap:8px;align-items:center">
-      ${imgSrc ? `<img src="${imgSrc}" style="width:40px;height:40px;border-radius:6px;object-fit:cover">` : ""}
+      ${imgSrc ? `<img src="${imgSrc}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0">` : ""}
       <input data-f="simg" type="text" class="form-control" value="${imgSrc}" placeholder="URL da imagem (opcional)" style="flex:1;font-size:0.8rem">
       <label style="cursor:pointer;background:#e8f4fd;border:1px solid #3498db;border-radius:6px;padding:5px 8px;font-size:0.75rem;white-space:nowrap">
         📷 <input type="file" accept="image/*" style="display:none" onchange="uploadSaborImagem(this, this.closest('.pizza-sabor-row'))">
       </label>
     </div>
   `;
+  _pizzaSaborDragBind(row);
   lista.appendChild(row);
+}
+
+function pizzaSaborToggleAtivo(btn) {
+  const atual = btn.dataset.ativo === "true";
+  const novo  = !atual;
+  btn.dataset.ativo = String(novo);
+  btn.style.background = novo ? "#27ae60" : "#e74c3c";
+  btn.textContent = novo ? "✅ Ativo" : "⏸ Pausado";
+}
+
+// ── Drag & Drop nativo para reordenar sabores ──────────────────
+let _dragSaborRow = null;
+
+function _pizzaSaborDragBind(row) {
+  row.addEventListener("dragstart", e => {
+    _dragSaborRow = row;
+    row.style.opacity = "0.4";
+    e.dataTransfer.effectAllowed = "move";
+  });
+  row.addEventListener("dragend", () => {
+    row.style.opacity = "";
+    _dragSaborRow = null;
+    // Remove indicadores visuais
+    document.querySelectorAll(".pizza-sabor-row").forEach(r => r.classList.remove("drag-over"));
+  });
+  row.addEventListener("dragover", e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (_dragSaborRow && _dragSaborRow !== row) {
+      row.classList.add("drag-over");
+    }
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+  row.addEventListener("drop", e => {
+    e.preventDefault();
+    row.classList.remove("drag-over");
+    if (!_dragSaborRow || _dragSaborRow === row) return;
+    const lista = document.getElementById("pizza-sabores-lista");
+    const rows  = [...lista.querySelectorAll(".pizza-sabor-row")];
+    const fromIdx = rows.indexOf(_dragSaborRow);
+    const toIdx   = rows.indexOf(row);
+    if (fromIdx < toIdx) {
+      lista.insertBefore(_dragSaborRow, row.nextSibling);
+    } else {
+      lista.insertBefore(_dragSaborRow, row);
+    }
+  });
+}
+
+// Inicializa drag em sabores existentes (chamado ao abrir modal de edição)
+function _pizzaSaboresDragInit() {
+  document.querySelectorAll("#pizza-sabores-lista .pizza-sabor-row").forEach(_pizzaSaborDragBind);
 }
 
 async function uploadSaborImagem(fileInput, row) {
@@ -6884,129 +6972,159 @@ function _mostrarModalOpcoesPDV(produto, tipo) {
   // ── PIZZA ────────────────────────────────────────────────────
   else if (tipo === "pizza") {
     const tamanhos = cfg.tamanhos || [];
-    const tipos_pizza = cfg.tipos_pizza || [];
     const sabores = cfg.sabores || [];
     const bordas = cfg.bordas || [];
 
+    // ── Helpers de preço (igual ao app.js) ──────────────────────
+    // Retorna o preço do tamanho para um determinado tipo de sabor
+    const _pdvPrecoTipo = (tam, tipo) => {
+      if (!tam) return 0;
+      const precos = tam.precos || {};
+      if (tipo && precos[tipo] > 0) return precos[tipo];
+      if (tipo) {
+        const k = Object.keys(precos).find(k2 => k2.toLowerCase() === (tipo || "").toLowerCase());
+        if (k && precos[k] > 0) return precos[k];
+      }
+      return tam.preco || 0;
+    };
+    // Retorna o menor preço disponível no tamanho (preço base)
+    const _pdvPrecoMin = (tam) => {
+      if (!tam) return 0;
+      const vals = Object.values(tam.precos || {}).filter(v => v > 0);
+      return vals.length ? Math.min(...vals) : (tam.preco || 0);
+    };
+
     let html = "";
+
+    // ── Passo 1: Tamanho (cards com fatias, cm e preço — igual ao app.js) ──
     if (tamanhos.length) {
-      html += `<div style="margin-bottom:12px"><p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:6px">📐 Tamanho:</p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${tamanhos
-            .map(
-              (t, i) => `
-            <label style="border:2px solid ${i === 0 ? "#e74c3c" : "#e5e7eb"};border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all .15s"
-              onclick="this.closest('div').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#e74c3c';this.style.background='#fff5f5';_pdvPizzaAtualizarPreco()">
+      html += `<div style="margin-bottom:14px">
+        <p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:8px">📐 Tamanho:</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" id="_pdv_pizza_tam_grid">
+          ${tamanhos.map((t, i) => `
+            <label style="border:2px solid ${i === 0 ? "#e74c3c" : "#e5e7eb"};background:${i === 0 ? "#fff5f5" : ""};border-radius:10px;padding:10px 12px;cursor:pointer;text-align:center;min-width:80px;transition:all .15s"
+              onclick="this.closest('#_pdv_pizza_tam_grid').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#e74c3c';this.style.background='#fff5f5';_pdvPizzaAtualizarPreco()">
               <input type="radio" name="_pdv_pizza_tam" value="${i}" style="display:none" ${i === 0 ? "checked" : ""}>
-              <div>${t.nome}</div><div style="font-size:0.72rem;color:#888">${t.fatias || ""}${t.fatias ? " fatias" : ""} ${t.cm || ""}${t.cm ? " cm" : ""}</div>
-            </label>`,
-            )
-            .join("")}
-        </div></div>`;
+              <div style="font-weight:700;font-size:0.9rem">${t.nome}</div>
+              ${t.fatias ? `<div style="font-size:0.7rem;color:#888">${t.fatias} fatias</div>` : ""}
+              ${t.cm ? `<div style="font-size:0.7rem;color:#888">⌀${t.cm}cm</div>` : ""}
+              <div style="font-size:0.82rem;font-weight:800;color:#e74c3c;margin-top:3px">Gs ${(t.preco || 0).toLocaleString("es-PY")}</div>
+            </label>`).join("")}
+        </div>
+      </div>`;
     }
 
-    if (tipos_pizza.length > 1) {
-      html += `<div style="margin-bottom:12px"><p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:6px">🍕 Tipo:</p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${tipos_pizza
-            .map(
-              (t, i) => `
-            <label style="border:2px solid ${i === 0 ? "#e74c3c" : "#e5e7eb"};border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all .15s"
-              onclick="this.closest('div').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#e74c3c';this.style.background='#fff5f5';_pdvPizzaFiltrarSabores()">
-              <input type="radio" name="_pdv_pizza_tipo" value="${t.nome}" style="display:none" ${i === 0 ? "checked" : ""}>
-              ${t.nome}
-            </label>`,
-            )
-            .join("")}
-        </div></div>`;
-    }
-
+    // ── Passo 2: Sabores — cada card mostra o preço do seu tipo (igual ao app.js) ──
     const maxSabDefault = tamanhos[0]?.max_sabores || 2;
-    html += `<div style="margin-bottom:12px"><p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:6px">🍽️ Sabores <span id="_pdv_pizza_maxlabel">(até ${maxSabDefault})</span>:</p>
+    const tam0 = tamanhos[0];
+    const precoMin0 = _pdvPrecoMin(tam0);
+    html += `<div style="margin-bottom:14px">
+      <p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:8px">🍽️ Sabores <span id="_pdv_pizza_maxlabel" style="font-weight:400;color:#888">(até ${maxSabDefault})</span>:</p>
       <div id="_pdv_sabores_lista" style="display:flex;flex-direction:column;gap:6px">
-        ${sabores
-          .map(
-            (s) => `
-          <label style="display:flex;align-items:center;gap:10px;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s"
-            data-tipo-sabor="${s.tipo || ""}"
-            onclick="var cb=this.querySelector('input');if(!cb.checked){var t=parseInt(document.getElementById('_pdv_pizza_maxlabel').textContent.match(/\d+/)?.[0]||2);var chk=document.querySelectorAll('#_pdv_sabores_lista input:checked').length;if(chk>=t){alert('Máx. '+t+' sabores');return;}cb.checked=true;this.style.borderColor='#e74c3c';this.style.background='#fff5f5';}else{cb.checked=false;this.style.borderColor='#e5e7eb';this.style.background='';}">
-            <input type="checkbox" value="${s.nome}" style="display:none">
-            ${s.img ? `<img src="${s.img}" style="width:36px;height:36px;border-radius:6px;object-fit:cover" onerror="this.style.display='none'">` : ""}
-            <div style="flex:1;font-size:0.88rem;font-weight:600">${s.nome}</div>
-            ${s.desc ? `<div style="font-size:0.75rem;color:#888">${s.desc}</div>` : ""}
-          </label>`,
-          )
-          .join("")}
-      </div></div>`;
+        ${sabores.map(s => {
+          const precoEste0 = _pdvPrecoTipo(tam0, s.tipo);
+          const diff0 = precoEste0 - precoMin0;
+          const precoLbl = diff0 > 0
+            ? `<span id="_pdv_sp_${s.nome.replace(/[^a-zA-Z0-9]/g,'_')}" style="font-size:0.78rem;font-weight:700;color:#e74c3c;white-space:nowrap">+Gs ${diff0.toLocaleString("es-PY")}</span>`
+            : `<span id="_pdv_sp_${s.nome.replace(/[^a-zA-Z0-9]/g,'_')}" style="font-size:0.78rem;font-weight:700;color:#e74c3c;white-space:nowrap"></span>`;
+          const tipoBadge = s.tipo
+            ? `<span style="font-size:0.68rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:4px;font-weight:600">${s.tipo}</span>`
+            : "";
+          return `
+            <label style="display:flex;align-items:center;gap:10px;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 10px;cursor:pointer;transition:all .15s"
+              data-tipo-sabor="${s.tipo || ""}"
+              onclick="(function(el){var cb=el.querySelector('input[type=checkbox]');if(!cb.checked){var t=parseInt(document.getElementById('_pdv_pizza_maxlabel').textContent.match(/\\d+/)?.[0]||2);var chk=document.querySelectorAll('#_pdv_sabores_lista input[type=checkbox]:checked').length;if(chk>=t){alert('Máx. '+t+' sabores');return;}cb.checked=true;el.style.borderColor='#e74c3c';el.style.background='#fff5f5';}else{cb.checked=false;el.style.borderColor='#e5e7eb';el.style.background='';}if(typeof _pdvPizzaAtualizarPreco==='function')_pdvPizzaAtualizarPreco();})(this)">
+              <input type="checkbox" value="${s.nome}" style="display:none">
+              ${s.img ? `<img src="${s.img}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">` : `<span style="font-size:1.4rem;flex-shrink:0">🍕</span>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-size:0.88rem;font-weight:600">${s.nome}${tipoBadge}</div>
+                ${s.desc ? `<div style="font-size:0.73rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.desc}</div>` : ""}
+              </div>
+              ${precoLbl}
+            </label>`;
+        }).join("")}
+      </div>
+    </div>`;
 
+    // ── Passo 3: Borda (opcional) — com update de preço ──────────
     if (bordas.length) {
-      html += `<div style="margin-bottom:12px"><p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:6px">🧀 Borda (opcional):</p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          <label style="border:2px solid #e5e7eb;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.85rem;transition:all .15s"
-            onclick="this.closest('div').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#27ae60';this.style.background='#f0fff4'">
+      html += `<div style="margin-bottom:14px">
+        <p style="font-size:0.82rem;font-weight:700;color:#e74c3c;margin-bottom:8px">🧀 Borda (opcional):</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="_pdv_pizza_borda_grid">
+          <label style="border:2px solid #27ae60;background:#f0fff4;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all .15s"
+            onclick="this.closest('#_pdv_pizza_borda_grid').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#27ae60';this.style.background='#f0fff4';if(typeof _pdvPizzaAtualizarPreco==='function')_pdvPizzaAtualizarPreco()">
             <input type="radio" name="_pdv_pizza_borda" value="" style="display:none" checked> Sem borda
           </label>
-          ${bordas
-            .map(
-              (b) => `
-            <label style="border:2px solid #e5e7eb;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.85rem;transition:all .15s"
-              onclick="this.closest('div').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#27ae60';this.style.background='#f0fff4'">
+          ${bordas.map(b => `
+            <label style="border:2px solid #e5e7eb;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all .15s"
+              onclick="this.closest('#_pdv_pizza_borda_grid').querySelectorAll('label').forEach(l=>{l.style.borderColor='#e5e7eb';l.style.background=''});this.style.borderColor='#27ae60';this.style.background='#f0fff4';if(typeof _pdvPizzaAtualizarPreco==='function')_pdvPizzaAtualizarPreco()">
               <input type="radio" name="_pdv_pizza_borda" value="${b.nome}" style="display:none">
-              ${b.nome} ${b.preco ? `(+Gs ${b.preco.toLocaleString("es-PY")})` : ""}
-            </label>`,
-            )
-            .join("")}
-        </div></div>`;
+              ${b.nome}${b.preco ? ` <span style="color:#e74c3c">+Gs ${b.preco.toLocaleString("es-PY")}</span>` : ""}
+            </label>`).join("")}
+        </div>
+      </div>`;
     }
 
     html += `<div id="_pdv_pizza_preco_box" style="background:#fff5f5;border:1.5px solid #fca5a5;border-radius:10px;padding:10px 14px;text-align:center;margin-bottom:8px">
-      <span style="font-size:0.8rem;color:#888">Total estimado:</span>
-      <div id="_pdv_pizza_preco_val" style="font-size:1.3rem;font-weight:800;color:#e74c3c">Gs —</div>
+      <div style="font-size:0.78rem;color:#888;margin-bottom:2px">★ Prevalece o preço do tipo mais caro entre os sabores</div>
+      <div style="font-size:0.8rem;color:#888">Total estimado:</div>
+      <div id="_pdv_pizza_preco_val" style="font-size:1.4rem;font-weight:800;color:#e74c3c">Gs —</div>
     </div>`;
 
     corpo().innerHTML = html;
 
-    // Expõe dados para o calcular preço
+    // Expõe cfg para uso externo
     window._pdvPizzaCfg = cfg;
 
+    // ── _pdvPizzaAtualizarPreco: igual ao app.js ─────────────────
+    // Preço = max(tam.precos[tipo] para cada sabor selecionado) + borda
     window._pdvPizzaAtualizarPreco = function () {
       const tamIdx = parseInt(
         modal.querySelector('input[name="_pdv_pizza_tam"]:checked')?.value ?? 0,
       );
       const tam = cfg.tamanhos?.[tamIdx];
       if (!tam) return;
-      const tipoSel =
-        modal.querySelector('input[name="_pdv_pizza_tipo"]:checked')?.value ||
-        cfg.tipos_pizza?.[0]?.nome ||
-        "Tradicional";
-      const precoBase = tam.precos?.[tipoSel] || tam.preco || 0;
-      const bordaVal =
-        modal.querySelector('input[name="_pdv_pizza_borda"]:checked')?.value ||
-        "";
-      const bordaPreco = bordaVal
-        ? cfg.bordas?.find((b) => b.nome === bordaVal)?.preco || 0
-        : 0;
-      const el = modal.querySelector("#_pdv_pizza_preco_val");
-      if (el)
-        el.textContent =
-          "Gs " + (precoBase + bordaPreco).toLocaleString("es-PY");
-      // Atualiza max sabores
+
+      // Atualiza label de max sabores
       const maxLbl = modal.querySelector("#_pdv_pizza_maxlabel");
       if (maxLbl) maxLbl.textContent = `(até ${tam.max_sabores || 2})`;
-    };
-    window._pdvPizzaFiltrarSabores = function () {
-      const tipoSel =
-        modal.querySelector('input[name="_pdv_pizza_tipo"]:checked')?.value ||
-        "";
-      modal.querySelectorAll("#_pdv_sabores_lista label").forEach((l) => {
-        const tl = l.dataset.tipoSabor;
-        l.style.display =
-          !tl || !tipoSel || tl === tipoSel || cfg.tipos_pizza?.length <= 1
-            ? ""
-            : "none";
+
+      // Atualiza preço diferencial em cada card de sabor
+      const precoMin = _pdvPrecoMin(tam);
+      modal.querySelectorAll("#_pdv_sabores_lista label").forEach(lbl => {
+        const tipo = lbl.dataset.tipoSabor || "";
+        const precoEste = _pdvPrecoTipo(tam, tipo);
+        const diff = precoEste - precoMin;
+        const nomeSabor = (lbl.querySelector("input[type=checkbox]")?.value || "").replace(/[^a-zA-Z0-9]/g, "_");
+        const el = modal.querySelector(`#_pdv_sp_${nomeSabor}`);
+        if (el) el.textContent = diff > 0 ? `+Gs ${diff.toLocaleString("es-PY")}` : "";
       });
+
+      // Calcula preço: max dos tipos dos sabores selecionados (REGRA DE OURO — igual app.js)
+      const saboresSel = [...modal.querySelectorAll("#_pdv_sabores_lista input[type=checkbox]:checked")]
+        .map(c => c.closest("label")?.dataset.tipoSabor || "");
+
+      let precoBase;
+      if (saboresSel.length > 0) {
+        precoBase = Math.max(...saboresSel.map(tipo => _pdvPrecoTipo(tam, tipo)));
+      } else {
+        precoBase = tam.preco || 0;
+      }
+
+      const bordaVal = modal.querySelector('input[name="_pdv_pizza_borda"]:checked')?.value || "";
+      const bordaPreco = bordaVal
+        ? cfg.bordas?.find(b => b.nome === bordaVal)?.preco || 0
+        : 0;
+
+      const el = modal.querySelector("#_pdv_pizza_preco_val");
+      if (el) el.textContent = "Gs " + (precoBase + bordaPreco).toLocaleString("es-PY");
+    };
+
+    // Compatibilidade — mantém função de filtro mas delegando para update de preço
+    window._pdvPizzaFiltrarSabores = function () {
       _pdvPizzaAtualizarPreco();
     };
+
     _pdvPizzaAtualizarPreco();
   }
 
@@ -7259,31 +7377,43 @@ function _pdvModalConfirmar(cacheKey) {
       modal.querySelector('input[name="_pdv_pizza_tam"]:checked')?.value ?? 0,
     );
     const tam = (cfg.tamanhos || [])[tamIdx];
-    const tipoSel =
-      modal.querySelector('input[name="_pdv_pizza_tipo"]:checked')?.value ||
-      cfg.tipos_pizza?.[0]?.nome ||
-      "";
     const borda =
       modal.querySelector('input[name="_pdv_pizza_borda"]:checked')?.value ||
       "";
+    // Coleta sabores com seus tipos (igual ao app.js)
     const saboresSel = [
-      ...modal.querySelectorAll("#_pdv_sabores_lista input:checked"),
-    ].map((c) => c.value);
+      ...modal.querySelectorAll("#_pdv_sabores_lista input[type=checkbox]:checked"),
+    ].map(c => ({
+      nome: c.value,
+      tipo: c.closest("label")?.dataset.tipoSabor || "",
+    }));
 
     if (!saboresSel.length) {
       alert("Escolha pelo menos 1 sabor.");
       return;
     }
 
-    preco = tam?.precos?.[tipoSel] || tam?.preco || preco;
+    // Preço = max entre os tipos dos sabores selecionados — REGRA DE OURO (igual app.js)
+    const _pdvPrecoPorTipo = (tamObj, tipo) => {
+      if (!tamObj) return 0;
+      const precos = tamObj.precos || {};
+      if (tipo && precos[tipo] > 0) return precos[tipo];
+      if (tipo) {
+        const k = Object.keys(precos).find(k2 => k2.toLowerCase() === (tipo || "").toLowerCase());
+        if (k && precos[k] > 0) return precos[k];
+      }
+      return tamObj.preco || 0;
+    };
+    const precostipos = saboresSel.map(s => _pdvPrecoPorTipo(tam, s.tipo));
+    preco = precostipos.length > 0 ? Math.max(...precostipos) : (tam?.preco || preco);
+
     const bordaPreco = borda
       ? cfg.bordas?.find((b) => b.nome === borda)?.preco || 0
       : 0;
     preco += bordaPreco;
 
     variacaoLabel = tam?.nome || "";
-    if (tipoSel) montagem.push("Tipo: " + tipoSel);
-    montagem.push("Sabores: " + saboresSel.join(" / "));
+    montagem.push("Sabores: " + saboresSel.map(s => s.nome).join(" / "));
     if (borda) montagem.push("Borda: " + borda);
   } else if (tipo === "shake") {
     const sk = cfg.shake || {};
@@ -10714,8 +10844,8 @@ function ftMostrarPanel(panel) {
     const btn = document.getElementById(`ft-nav-${p}`);
     if (el) el.style.display = p === panel ? "block" : "none";
     if (btn) {
-      btn.classList.toggle("btn-primary", p === panel);
-      btn.classList.toggle("btn-secondary", p !== panel);
+      // ft-tab-ativo = fundo preenchido; sem ela = outline com texto/borda coloridos
+      btn.classList.toggle("ft-tab-ativo", p === panel);
     }
   });
 }

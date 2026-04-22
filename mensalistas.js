@@ -162,6 +162,11 @@ function mensRenderPlanos() {
             style="flex:1;padding:9px;background:#9b59b6;color:#fff;border:none;border-radius:9px;cursor:pointer;font-size:0.83rem;font-weight:600;min-width:70px">
             📋
           </button>
+          <button onclick="mensExcluirPlano(${p.id})"
+            style="flex:0 0 40px;padding:9px;background:#fee2e2;color:#e74c3c;border:none;border-radius:9px;cursor:pointer;font-size:0.9rem;font-weight:700"
+            title="Excluir plano">
+            🗑️
+          </button>
         </div>
       </div>`;
   }).join('');
@@ -522,4 +527,17 @@ async function mensReimprimirEntrega(entregaId, planoId) {
 // ──────────────────────────────────────────────────────────────
 function mensFiltrar() {
   mensRenderPlanos();
+}
+
+// ──────────────────────────────────────────────────────────────
+//  EXCLUIR PLANO
+// ──────────────────────────────────────────────────────────────
+async function mensExcluirPlano(id) {
+  if (!confirm('Excluir este plano? As entregas registradas também serão removidas.')) return;
+  try {
+    await supa.from('mensalista_entregas').delete().eq('plano_id', id);
+    const { error } = await supa.from('planos_mensalistas').delete().eq('id', id);
+    if (error) { alert('Erro ao excluir: ' + error.message); return; }
+    await initMensalistas();
+  } catch(e) { alert('Erro: ' + e.message); }
 }

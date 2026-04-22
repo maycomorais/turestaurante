@@ -166,6 +166,27 @@ tr:hover { background: #f9f9f9; }
 .btn-info { background: #3498db; }
 .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
 
+/* ── Tabs tipo "outline → filled" (Ficha Técnica, etc.) ───────
+   Inativo: borda + texto coloridos (legível)
+   Ativo:   fundo preenchido + texto branco               ── */
+.ft-tab-btn {
+    background: #fff;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+.ft-tab-btn:hover:not(.ft-tab-ativo) {
+    background: #e8f5e9;
+    border-color: var(--primary);
+    color: var(--primary);
+    opacity: 1;
+    transform: none;
+}
+.ft-tab-btn.ft-tab-ativo {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
 .actions-cell { display: flex; gap: 5px; }
 
 /* --- COZINHA --- */
@@ -586,7 +607,7 @@ select.form-control, select.input-modern {
 .pdv-layout {
     display: grid;
     grid-template-columns: 1fr 330px;
-    height: calc(100vh - 170px);
+    height: 100vh;
     border-radius: 10px;
     overflow: hidden;
     border: 1px solid #ccc;
