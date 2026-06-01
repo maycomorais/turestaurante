@@ -5,6 +5,129 @@ if (typeof t === "undefined") {
   };
 }
 
+// Intercepta e traduz alert/confirm/prompt caso idioma seja 'es'
+(function() {
+  const origAlert = window.alert;
+  const origConfirm = window.confirm;
+  const origPrompt = window.prompt;
+
+  const translationDict = {
+    // Alerts
+    "Horário estendido em +": "¡Horario extendido en +",
+    "minutos hoje!": "minutos hoy!",
+    "Extensão removida.": "Extensión removida.",
+    "Erro ao salvar nova ordem. Tente novamente.": "Error al guardar el nuevo orden. Inténtelo de nuevo.",
+    "Preencha o slug e o nome!": "¡Complete el slug y el nombre!",
+    "Erro ao salvar:": "Error al guardar:",
+    "Erro ao deletar:": "Error al eliminar:",
+    "Erro inesperado:": "Error inesperado:",
+    "Produto reativado!": "¡Producto reactivado!",
+    "Produto pausado!": "¡Producto pausado!",
+    "Categoria deletada com sucesso!": "¡Categoría eliminada con éxito!",
+    "Motoboy deletado com sucesso!": "¡Repartidor eliminado con éxito!",
+    "Nome do motoboy é obrigatório!": "¡El nombre del repartidor es obligatorio!",
+    "Máximo de 2 turnos por dia.": "Máximo de 2 turnos por día.",
+    "Preencha os horários de abertura e fechamento.": "Complete los horarios de apertura y cierre.",
+    "Informe o ID do produto para o banner.": "Ingrese el ID del producto para el banner.",
+    "Falha no upload do banner:": "Fallo al subir el banner:",
+    "O banner não foi salvo.": "El banner no fue guardado.",
+    "Selecione uma foto ou informe a URL do banner.": "Seleccione una foto o ingrese la URL del banner.",
+    "Banner ": "Banner ",
+    "ativado!": "¡activado!",
+    "Maquininhas salvas!": "¡Terminales de tarjeta guardadas!",
+    "Falha no upload do ícone:": "Fallo al subir el ícono:",
+    "A personalização não foi salva.": "La personalización no fue guardada.",
+    "Erro ao enviar imagem:": "Error al enviar la imagen:",
+    "Erro ao sair:": "Error al salir:",
+    "Todas as variações estão pausadas.": "Todas las variaciones están pausadas.",
+    "sabores": "sabores",
+    "itens": "ítems",
+    "Escolha pelo menos 1 sabor.": "Elija al menos 1 sabor.",
+    "Adicione ao menos 1 novo item antes de lançar.": "Agregue al menos 1 nuevo ítem antes de lanzar.",
+    "Adicione ao menos 1 forma de pagamento!": "¡Agregue al menos 1 forma de pago!",
+    "Erro ao atualizar mesa:": "Error al actualizar mesa:",
+    "item(s) enviado(s) para a cozinha!": "¡ítem(s) enviado(s) a la cocina!",
+    "Erro ao buscar comanda.": "Error al buscar comanda.",
+    "Erro ao baixar item:": "Error al cerrar ítem:",
+    "Cargo alterado para ": "¡Cargo modificado a ",
+    "Usuário excluído com sucesso!": "¡Usuario eliminado con éxito!",
+    "Preencha email, nome e senha (mín. 6 caracteres).": "Complete correo, nombre y contraseña (mín. 6 caracteres).",
+    "Auth criado mas erro no perfil:": "Auth creado pero con error en el perfil:",
+    "Usuário excluído.": "Usuario eliminado.",
+    "Email e senha (mín. 6 caracteres) são obrigatórios": "Correo y contraseña (mín. 6 caracteres) son obligatorios",
+    "O nome de exibição é obrigatório": "El nombre de exhibición es obligatorio",
+    "Apenas o Admin Master pode criar usuários com cargo Dono.": "Solo el Admin Master puede crear usuarios con el cargo de Dueño.",
+    "Erro ao criar usuário:": "Error al crear usuario:",
+    "Usuário criado. Aguardando confirmação de email para ativar.": "Usuario creado. Esperando confirmación de correo para activar.",
+    "Digite um código para o cupom": "Ingrese un código para el cupón",
+    "Cupom salvo com sucesso!": "¡Cupón guardado con éxito!",
+    "Pedido não encontrado.": "Pedido no encontrado.",
+    "Este pedido não tem número de telefone registrado.": "Este pedido no tiene número de teléfono registrado.",
+    "Entrega confirmada com sucesso!": "¡Entrega confirmada con éxito!",
+    "Erro ao confirmar entrega": "Error al confirmar entrega",
+    "Nenhum pedido de Mesa/Retirada/Local em aberto.": "Ningún pedido de Mesa/Retiro/Local abierto.",
+    "pedido(s) baixado(s)!": "¡pedido(s) cobrado(s)/cerrado(s)!",
+    "Nenhum delivery para confirmar entrega.": "Ningún delivery para confirmar entrega.",
+    "delivery(s) confirmado(s)!": "¡delivery(s) confirmado(s)!",
+    "Erro ao carregar gráfico": "Error al cargar gráfico",
+    "Informe o nome do item.": "Ingrese el nombre del ítem.",
+    "Quantidade inválida.": "Cantidad inválida.",
+    "Configuração inicial salva com sucesso!": "¡Configuración inicial guardada con éxito!",
+    "Preencha o valor corretamente.": "Complete el valor correctamente.",
+    "Descreva o tipo da despesa.": "Describa el tipo de gasto.",
+    "Você precisa aceitar o contrato de serviços para continuar.": "Debe aceptar el contrato de servicios para continuar.",
+    "Preencha seu nome completo e RUC/C.I. para assinar.": "Complete su nombre completo y RUC/C.I. para firmar.",
+    "Erro ao registrar assinatura:": "Error al registrar la firma:",
+
+    // Confirms
+    "Remover a extensão de horário de hoje?": "¿Remover la extensión de horario de hoy?",
+    "Deseja pausar este produto?": "¿Desea pausar este producto?",
+    "Deseja reactivar este produto?": "¿Desea reactivar este producto?",
+    "Deseja reativar este produto?": "¿Desea reactivar este producto?",
+    "Remover esta etapa?": "¿Remover esta etapa?",
+    "Deletar este cupom?": "¿Eliminar este cupón?",
+    "Confirmar entrega e pagamento desta mesa?": "¿Confirmar entrega y pago de esta mesa?",
+    "Excluir este item?": "¿Eliminar este ítem?",
+    "Excluir esta despesa? Esta ação não pode ser desfeita.": "¿Eliminar este gasto? Esta acción no se puede deshacer.",
+    "Alterar cargo para": "¿Alterar cargo a",
+    "Confirmar que este pedido foi entregue ao cliente?": "¿Confirmar que este pedido fue entregado al cliente?",
+    "Confirmar entrega de ": "¿Confirmar entrega de ",
+    "Baixar ": "¿Cobrar/cerrar "
+  };
+
+  function translateText(str) {
+    if (!str || typeof str !== 'string') return str;
+    const lang = localStorage.getItem('admin_lang') || 'es';
+    if (lang !== 'es') return str;
+
+    // Check exact match
+    let trimmed = str.trim();
+    if (translationDict[trimmed]) {
+      return str.replace(trimmed, translationDict[trimmed]);
+    }
+
+    // Partial search / replacement for dynamic strings
+    let translated = str;
+    for (const [key, val] of Object.entries(translationDict)) {
+      if (translated.includes(key)) {
+        translated = translated.replaceAll(key, val);
+      }
+    }
+    return translated;
+  }
+
+  window.alert = function(msg) {
+    return origAlert(translateText(msg));
+  };
+  window.confirm = function(msg) {
+    return origConfirm(translateText(msg));
+  };
+  window.prompt = function(msg, defaultVal) {
+    return origPrompt(translateText(msg), defaultVal);
+  };
+})();
+
+
 // =========================================
 // 1. CONSTANTES E INICIALIZAÇÃO
 // =========================================
@@ -192,6 +315,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     carregarDashboard();
     carregarMotoboysSelect();
+
+    // ── Controle de Assinatura (barra de aviso / bloqueio) ──
+    if (typeof SubscriptionUI !== "undefined") {
+      SubscriptionUI.inicializar({
+        supabaseUrl:  typeof _SUPABASE_URL !== "undefined" ? _SUPABASE_URL : "",
+        supabaseKey:  typeof _SUPABASE_KEY !== "undefined" ? _SUPABASE_KEY : "",
+        contatoFone:  "595976771714",
+        contatoNome:  "SuporteLinkPY",
+        perfil:       perfilUsuario,
+      });
+    }
+
+    // Exibe menu Assinatura somente para adminMaster
+    const menuAssin = document.getElementById("menu-assinatura");
+    if (menuAssin) menuAssin.style.display = perfilUsuario === "adminMaster" ? "flex" : "none";
   }
 
   let _lastWidth = window.innerWidth;
@@ -235,6 +373,49 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // selecionarTipo do Gemini removido — o sistema usa selecionarTipoBuilder() abaixo
+
+// =========================================
+// CLOUDINARY — UPLOAD UTILITÁRIO
+// =========================================
+const CLOUDINARY_CLOUD_NAME = "dsxwnbj0o";
+const CLOUDINARY_UPLOAD_PRESET = "ml_default";
+const CLOUDINARY_ENDPOINT = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+/**
+ * Faz upload de um arquivo de imagem diretamente para o Cloudinary
+ * usando um Unsigned Upload Preset público.
+ *
+ * @param {File} file - O objeto File selecionado pelo usuário.
+ * @returns {Promise<string>} - A secure_url final da imagem no Cloudinary.
+ * @throws {Error} - Lança um erro se o upload falhar, impedindo o salvamento no Supabase.
+ */
+async function uploadImageToCloudinary(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(CLOUDINARY_ENDPOINT, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errMsg = `HTTP ${response.status}`;
+    try {
+      const errData = await response.json();
+      errMsg = errData?.error?.message || errMsg;
+    } catch (_) {}
+    throw new Error(`Cloudinary upload falhou: ${errMsg}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.secure_url) {
+    throw new Error("Cloudinary não retornou uma URL válida.");
+  }
+
+  return data.secure_url;
+}
 
 // =========================================
 // 2. CONTROLE DE ABAS
@@ -315,6 +496,7 @@ function showTab(tabId, event) {
     amCarregarUsuarios();
     renderPainelFeatures();
   }
+  if (realTabId === "assinatura") carregarPainelAssinatura();
   if (realTabId === "estatisticas") {
     initEstatisticas();
     _estPopularCategorias();
@@ -1338,48 +1520,143 @@ let _caixaState = {
   qtdPedidos: 0,
 };
 
+// Sessão de caixa ativa (carregada ao abrir a aba financeiro)
+let _sessaoCaixaAtiva = null;
+// { id, usuario_email, aberto_em, fechado_em, valor_abertura }
+
+// ─────────────────────────────────────────────────────────────
+// GERENCIAMENTO DE SESSÃO DE CAIXA
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Carrega a sessão de caixa ativa para o usuário corrente.
+ * Gestores veem qualquer sessão aberta (ou a mais recente).
+ * Funcionário vê apenas a sua própria.
+ */
+async function _carregarSessaoCaixa() {
+  const ehGestor   = ["dono", "gerente", "adminMaster"].includes(perfilUsuario);
+  const emailAtual = document.getElementById("user-email")?.innerText || "";
+
+  let q = supa
+    .from("sessoes_caixa")
+    .select("*")
+    .is("fechado_em", null)          // só sessões ABERTAS
+    .order("aberto_em", { ascending: false })
+    .limit(1);
+
+  if (!ehGestor) q = q.eq("usuario_email", emailAtual);
+
+  const { data } = await q;
+  _sessaoCaixaAtiva = data?.[0] || null;
+
+  // Atualiza o indicador visual de status do caixa (se existir no HTML)
+  const elStatus = document.getElementById("status-sessao-caixa");
+  if (elStatus) {
+    if (_sessaoCaixaAtiva) {
+      const dAbr = new Date(_sessaoCaixaAtiva.aberto_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+      elStatus.innerHTML = `<span style="color:#27ae60">🟢 Caixa aberto desde ${dAbr}</span>`;
+    } else {
+      elStatus.innerHTML = `<span style="color:#e74c3c">🔴 Nenhum caixa aberto</span>`;
+    }
+  }
+}
+
+/**
+ * Exibe alerta de abertura de caixa e abre o modal para registro.
+ */
+function _exibirAlertaAberturaCaixa() {
+  const ehGestor = ["dono", "gerente", "adminMaster"].includes(perfilUsuario);
+  const msg = ehGestor
+    ? "⚠️ Nenhuma sessão de caixa está aberta no momento.\n\nDeseja abrir o caixa agora?"
+    : "⚠️ Você ainda não abriu o caixa hoje.\n\nÉ necessário registrar a abertura para contabilizar as vendas nesta sessão.\n\nDeseja abrir o caixa agora?";
+
+  if (confirm(msg)) {
+    abrirModalCaixa("abertura");
+  }
+}
+
+/**
+ * Abre nova sessão de caixa no Supabase e carrega em _sessaoCaixaAtiva.
+ * Chamado ao salvar uma movimentação do tipo "abertura".
+ */
+async function _abrirSessaoCaixa(valorAbertura, descricao) {
+  const emailAtual = document.getElementById("user-email")?.innerText || "";
+  const nome       = document.getElementById("user-nome-display")?.innerText || emailAtual;
+
+  const { data, error } = await supa
+    .from("sessoes_caixa")
+    .insert([{
+      usuario_email:  emailAtual,
+      usuario_nome:   nome,
+      aberto_em:      new Date().toISOString(),
+      valor_abertura: valorAbertura || 0,
+      observacao:     descricao || null,
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  _sessaoCaixaAtiva = data;
+  return data;
+}
+
 async function calcularFinanceiro() {
   const abaFin = document.getElementById("financeiro");
   if (!abaFin || !abaFin.classList.contains("active")) return;
 
-  const elInicio = document.getElementById("fin-inicio");
-  const elFim = document.getElementById("fin-fim");
-  const elTipo = document.getElementById("fin-tipo");
+  const elInicio  = document.getElementById("fin-inicio");
+  const elFim     = document.getElementById("fin-fim");
+  const elTipo    = document.getElementById("fin-tipo");
   const elFactura = document.getElementById("fin-factura");
   if (!elInicio || !elFim || !elTipo) return;
 
-  const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-  const dia = String(hoje.getDate()).padStart(2, "0");
-  if (!elInicio.value) elInicio.value = `${ano}-${mes}-${dia}`;
-  if (!elFim.value) elFim.value = `${ano}-${mes}-${dia}`;
-
-  const inicio = elInicio.value,
-    fim = elFim.value;
-  const tipoFiltro = elTipo.value;
-  const facturaFiltro = elFactura ? elFactura.value : "todos";
-
-  // UTC correction for PY (UTC-4)
-  const _tz = 4 * 60 * 60 * 1000;
-  const utcI = new Date(
-    new Date(inicio + "T00:00:00").getTime() + _tz,
-  ).toISOString();
-  const utcF = new Date(
-    new Date(fim + "T23:59:59").getTime() + _tz,
-  ).toISOString();
-
-  // ── Determina se é visão geral ou caixa próprio ────────────────
-  const ehGestor = ["dono", "gerente", "adminMaster"].includes(perfilUsuario);
+  const ehGestor   = ["dono", "gerente", "adminMaster"].includes(perfilUsuario);
   const emailAtual = document.getElementById("user-email")?.innerText || "";
 
+  // ── 1. Carrega/verifica sessão ativa ─────────────────────────────
+  await _carregarSessaoCaixa();
+
+  // ── 2. Se não houver sessão aberta, exibe alerta de abertura ─────
+  if (!_sessaoCaixaAtiva) {
+    _exibirAlertaAberturaCaixa();
+    return; // não renderiza nada enquanto não houver sessão
+  }
+
+  // ── 3. Define intervalo de tempo baseado na SESSÃO, não no calendário ─
+  const sessaoInicio = _sessaoCaixaAtiva.aberto_em;
+  const sessaoFim    = _sessaoCaixaAtiva.fechado_em || new Date().toISOString();
+
+  // Gestores podem sobrepor o intervalo com o filtro de datas da tela
+  let utcI = sessaoInicio;
+  let utcF = sessaoFim;
+  if (ehGestor && elInicio.value && elFim.value) {
+    const _tz = 4 * 60 * 60 * 1000; // UTC-4 PY
+    utcI = new Date(new Date(elInicio.value + "T00:00:00").getTime() + _tz).toISOString();
+    utcF = new Date(new Date(elFim.value   + "T23:59:59").getTime() + _tz).toISOString();
+  } else if (!elInicio.value || !elFim.value) {
+    // Preenche os campos de data com os valores da sessão para exibição
+    const dAbr = new Date(sessaoInicio);
+    elInicio.value = dAbr.toISOString().split("T")[0];
+    const dFch = new Date(sessaoFim);
+    elFim.value    = dFch.toISOString().split("T")[0];
+  }
+
+  const tipoFiltro    = elTipo.value;
+  const facturaFiltro = elFactura ? elFactura.value : "todos";
+
+  // ── 4. Busca pedidos dentro da janela da sessão ───────────────────
   let query = supa
     .from("pedidos")
     .select("*, motoboys(nome)")
     .in("status", ["entregue", "em_preparo", "pronto_entrega", "saiu_entrega"])
     .gte("created_at", utcI)
     .lte("created_at", utcF);
+
   if (tipoFiltro !== "todos") query = query.eq("forma_pagamento", tipoFiltro);
+
+  // Funcionário: filtra apenas pedidos relacionados ao seu usuário
+  // (via mesa/operador, se seu schema tiver esse campo — ajuste o campo se necessário)
+  // if (!ehGestor) query = query.eq("operador_email", emailAtual);
 
   const { data: pedidos } = await query;
   let peds = pedidos || [];
@@ -1389,12 +1666,11 @@ async function calcularFinanceiro() {
   else if (facturaFiltro === "sem_factura")
     peds = peds.filter((p) => !p.dados_factura?.ruc && !p.dados_factura?.ci);
 
-  // ── Movimentações de caixa ─────────────────────────────────────
+  // ── 5. Movimentações de caixa da SESSÃO ──────────────────────────
   let caixaQuery = supa
     .from("movimentacoes_caixa")
     .select("*")
-    .gte("created_at", inicio + " 00:00:00")
-    .lte("created_at", fim + " 23:59:59");
+    .eq("sessao_id", _sessaoCaixaAtiva.id); // vínculo direto à sessão
   if (!ehGestor) caixaQuery = caixaQuery.eq("usuario_email", emailAtual);
 
   const { data: caixa } = await caixaQuery;
@@ -1402,28 +1678,16 @@ async function calcularFinanceiro() {
   // Verifica bloqueio de caixa (sangria limite)
   _verificarBloqueioCaixa(emailAtual);
 
-  // ── Cálculos ───────────────────────────────────────────────────
+  // ── 6. Cálculos (inalterado) ──────────────────────────────────────
   const safeNum = (v) => {
     if (!v) return 0;
     if (typeof v === "number") return v;
-    return (
-      parseFloat(
-        v
-          .toString()
-          .replace(/[^\d.,-]/g, "")
-          .replace(",", "."),
-      ) || 0
-    );
+    return parseFloat(v.toString().replace(/[^\d.,-]/g,"").replace(",",".")) || 0;
   };
   const fmt = (n) => "Gs " + n.toLocaleString("es-PY");
 
-  let faturamento = 0,
-    totalPix = 0,
-    totalTransf = 0,
-    totalCartao = 0,
-    totalEfetivo = 0;
-  let custoEntregas = 0,
-    qtdPedidos = 0;
+  let faturamento = 0, totalPix = 0, totalTransf = 0, totalCartao = 0, totalEfetivo = 0;
+  let custoEntregas = 0, qtdPedidos = 0;
   const motoMap = {};
 
   peds.forEach((p) => {
@@ -1431,157 +1695,105 @@ async function calcularFinanceiro() {
     faturamento += val;
     qtdPedidos++;
     const pag = (p.forma_pagamento || "").toLowerCase();
-    if (pag.includes("pix")) totalPix += val;
+    if (pag.includes("pix"))          totalPix    += val;
     else if (pag.includes("transfer")) totalTransf += val;
-    else if (pag.includes("cartao") || pag.includes("cartão"))
-      totalCartao += val;
-    else if (pag.includes("efetivo") || pag.includes("dinheiro"))
-      totalEfetivo += val;
-
+    else if (pag.includes("cartao") || pag.includes("cartão")) totalCartao += val;
+    else if (pag.includes("efetivo") || pag.includes("dinheiro")) totalEfetivo += val;
     if (p.tipo_entrega === "delivery") {
       const taxa = safeNum(p.frete_motoboy) || TAXA_MOTOBOY || 0;
       custoEntregas += taxa;
       const nm = p.motoboys?.nome || "Sem Motoboy";
-      if (!motoMap[nm]) {
-        motoMap[nm] = { entregas: 0, frete_total: 0 };
-        // Combustível NÃO somado aqui — calculado uma vez por motoboy identificado abaixo
-      }
+      if (!motoMap[nm]) motoMap[nm] = { entregas: 0, frete_total: 0 };
       motoMap[nm].entregas++;
       motoMap[nm].frete_total += taxa;
     }
   });
 
-  // Soma combustível uma vez por motoboy IDENTIFICADO (exclui "Sem Motoboy")
-  const qtdMotoboyUnicos = Object.keys(motoMap).filter(
-    (n) => n !== "Sem Motoboy",
-  ).length;
+  const qtdMotoboyUnicos = Object.keys(motoMap).filter(n => n !== "Sem Motoboy").length;
   custoEntregas += (AJUDA_COMBUSTIVEL || 0) * qtdMotoboyUnicos;
 
-  let totalSaidas = 0,
-    totalEntradas = 0,
-    totalSangria = 0;
+  let totalSaidas = 0, totalEntradas = 0, totalSangria = 0;
   (caixa || []).forEach((c) => {
     const v = safeNum(c.valor);
-    if (c.tipo === "despesa") totalSaidas += v;
-    if (c.tipo === "sangria") {
-      totalSaidas += v;
-      totalSangria += v;
-    }
+    if (c.tipo === "despesa")  totalSaidas  += v;
+    if (c.tipo === "sangria")  { totalSaidas += v; totalSangria += v; }
     if (c.tipo === "suprimento" || c.tipo === "abertura") totalEntradas += v;
   });
 
-  _caixaState = {
-    faturamento,
-    custoEntregas,
-    totalSaidas,
-    totalEntradas,
-    totalPix,
-    totalTransf,
-    totalCartao,
-    totalEfetivo,
-    qtdPedidos,
-    totalSangria,
-  };
+  _caixaState = { faturamento, custoEntregas, totalSaidas, totalEntradas,
+                  totalPix, totalTransf, totalCartao, totalEfetivo, qtdPedidos, totalSangria };
 
   const lucro = faturamento + totalEntradas - custoEntregas - totalSaidas;
-  const setV = (id, v) => {
-    const el = document.getElementById(id);
-    if (el) el.innerText = v;
-  };
-  setV("card-faturamento", fmt(faturamento));
-  setV("card-custo-moto", fmt(custoEntregas));
-  setV("card-lucro", fmt(lucro));
-  setV("total-pix", fmt(totalPix));
-  setV("total-transf", fmt(totalTransf));
-  setV("total-cartao", fmt(totalCartao));
-  setV("total-efetivo", fmt(totalEfetivo));
-  setV("card-qtd-pedidos", qtdPedidos);
+  const setV  = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+
+  setV("card-faturamento",  fmt(faturamento));
+  setV("card-custo-moto",   fmt(custoEntregas));
+  setV("card-lucro",        fmt(lucro));
+  setV("total-pix",         fmt(totalPix));
+  setV("total-transf",      fmt(totalTransf));
+  setV("total-cartao",      fmt(totalCartao));
+  setV("total-efetivo",     fmt(totalEfetivo));
+  setV("card-qtd-pedidos",  qtdPedidos);
   setV("card-ticket-medio", fmt(qtdPedidos > 0 ? faturamento / qtdPedidos : 0));
 
-  // Identificação do caixa atual
+  // Badge do operador / info da sessão
   const badgeCaixa = document.getElementById("badge-caixa-operador");
   if (badgeCaixa) {
+    const dAbr = new Date(_sessaoCaixaAtiva.aberto_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+    const dFch = _sessaoCaixaAtiva.fechado_em
+      ? new Date(_sessaoCaixaAtiva.fechado_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })
+      : "em aberto";
     badgeCaixa.textContent = ehGestor
-      ? "📊 Visão geral — todos os caixas"
-      : `💼 Seu caixa — ${emailAtual}`;
+      ? `📊 Visão geral — sessão ${_sessaoCaixaAtiva.id} (${_sessaoCaixaAtiva.usuario_email}) · ${dAbr} → ${dFch}`
+      : `💼 Seu caixa — aberto ${dAbr} → ${dFch}`;
   }
 
-  // ── Tabela de despesas com Editar/Excluir ───────────────────────
+  // Tabelas de despesas e motoboys (código original preservado)
   const tbD = document.getElementById("lista-despesas-caixa");
   if (tbD) {
     const despesas = (caixa || []).filter((c) => c.tipo === "despesa");
     const _DLABELS = {
-      despesas_gerais: "📦 Despesas Gerais",
-      contas_fixas: "🏠 Contas Fixas",
-      pagamento_fornecedor: "🤝 Fornecedor",
-      pagamento_funcionario: "👷 Funcionário",
-      pagamento_terceiros: "👥 Terceiros",
-      manutencao: "🔧 Manutenção",
-      retirada: "💵 Retirada",
-      motoboy: "🛵 Motoboy",
-      outro: "✏️ Outro",
+      despesas_gerais:"📦 Despesas Gerais", contas_fixas:"🏠 Contas Fixas",
+      pagamento_fornecedor:"🤝 Fornecedor",  pagamento_funcionario:"👷 Funcionário",
+      pagamento_terceiros:"👥 Terceiros",    manutencao:"🔧 Manutenção",
+      retirada:"💵 Retirada", motoboy:"🛵 Motoboy", outro:"✏️ Outro",
     };
     if (!despesas.length) {
-      tbD.innerHTML =
-        '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Nenhuma despesa no período</td></tr>';
+      tbD.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Nenhuma despesa nesta sessão</td></tr>';
     } else {
-      tbD.innerHTML = despesas
-        .map((d) => {
-          const dt = new Date(d.created_at).toLocaleString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          const tipoLabel = _DLABELS[d.tipo_despesa] || d.tipo_despesa || "—";
-          const descExtra =
-            d.tipo_despesa === "outro" && d.descricao_outro
-              ? ` (${d.descricao_outro})`
-              : "";
-          const obs = d.descricao || "";
-          const enc = encodeURIComponent(
-            JSON.stringify({
-              id: d.id,
-              valor: d.valor,
-              tipo_despesa: d.tipo_despesa || "despesas_gerais",
-              descricao: d.descricao || "",
-              descricao_outro: d.descricao_outro || "",
-            }),
-          );
-          return `<tr>
+      tbD.innerHTML = despesas.map((d) => {
+        const dt = new Date(d.created_at).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+        const tipoLabel = _DLABELS[d.tipo_despesa] || d.tipo_despesa || "—";
+        const descExtra = d.tipo_despesa === "outro" && d.descricao_outro ? ` (${d.descricao_outro})` : "";
+        const obs = d.descricao || "";
+        const enc = encodeURIComponent(JSON.stringify({ id:d.id, valor:d.valor, tipo_despesa:d.tipo_despesa||"despesas_gerais", descricao:d.descricao||"", descricao_outro:d.descricao_outro||"" }));
+        return `<tr>
           <td style="white-space:nowrap;color:#666;font-size:0.82rem">${dt}</td>
           <td><span style="background:#fdecea;color:#a93226;padding:2px 7px;border-radius:10px;font-size:0.78rem">${tipoLabel}${descExtra}</span></td>
           <td style="color:#555;font-size:0.85rem">${obs}</td>
           <td style="text-align:right;font-weight:700;color:#c0392b;white-space:nowrap">${fmt(d.valor)}</td>
           <td style="text-align:center;white-space:nowrap">
-            <button onclick="abrirEditarDespesa('${enc}')"
-              style="background:#3498db;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;margin-right:4px">✏️</button>
-            <button onclick="excluirDespesa(${d.id})"
-              style="background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem">🗑️</button>
-          </td>
-        </tr>`;
-        })
-        .join("");
+            <button onclick="abrirEditarDespesa('${enc}')" style="background:#3498db;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem;margin-right:4px">✏️</button>
+            <button onclick="excluirDespesa(${d.id})" style="background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.8rem">🗑️</button>
+          </td></tr>`;
+      }).join("");
     }
   }
 
-  // Tabela motoboys
   const tbM = document.getElementById("lista-financeiro-motoboys");
   if (tbM) {
     tbM.innerHTML = "";
     if (!Object.keys(motoMap).length) {
-      tbM.innerHTML =
-        '<tr><td colspan="4" style="text-align:center;color:#999">Nenhuma entrega no período</td></tr>';
+      tbM.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999">Nenhuma entrega nesta sessão</td></tr>';
     } else {
       for (const [nome, d] of Object.entries(motoMap)) {
         const semNome = nome === "Sem Motoboy";
         const comb = semNome ? 0 : AJUDA_COMBUSTIVEL || 0;
-        const tot = d.frete_total + comb;
+        const tot  = d.frete_total + comb;
         const combLabel = semNome
           ? '<span style="color:#aaa;font-size:0.78rem">sem combustível</span>'
           : `+ comb. ${fmt(comb)}`;
-        tbM.innerHTML += `<tr>
-          <td>${nome}</td><td>${d.entregas}</td>
+        tbM.innerHTML += `<tr><td>${nome}</td><td>${d.entregas}</td>
           <td style="font-size:0.82rem">Frete: ${fmt(d.frete_total)} ${combLabel}</td>
           <td><strong>${fmt(tot)}</strong></td></tr>`;
       }
@@ -2076,93 +2288,106 @@ function abrirModalCaixa(tipo) {
 }
 
 async function salvarMovimentacaoCaixa() {
-  const tipo = document.getElementById("tipo-caixa").value;
+  const tipo  = document.getElementById("tipo-caixa").value;
   const valor = parseFloat(document.getElementById("valor-caixa").value);
-  const desc = document.getElementById("desc-caixa").value.trim();
-  if (!valor || valor <= 0) {
-    alert("Digite um valor válido.");
-    return;
-  }
+  const desc  = document.getElementById("desc-caixa").value.trim();
+
+  if (!valor || valor <= 0) { alert("Digite um valor válido."); return; }
 
   const emailAtual = document.getElementById("user-email")?.innerText || "";
 
-  // Bloquear se caixa bloqueado (apenas para tipos que movimentam efetivo)
-  const { data: cfg } = await supa
-    .from("configuracoes")
-    .select("caixa_status")
-    .maybeSingle();
+  // Bloquear se caixa bloqueado
+  const { data: cfg } = await supa.from("configuracoes").select("caixa_status").maybeSingle();
   const status = cfg?.caixa_status || {};
   if (status[emailAtual]?.bloqueado && tipo !== "sangria") {
-    alert(
-      "⛔ Caixa bloqueado por sangria. Solicite autorização de um gestor para reabrir.",
-    );
+    alert("⛔ Caixa bloqueado por sangria. Solicite autorização de um gestor para reabrir.");
     return;
   }
 
-  // Tipo de despesa
-  let tipoDespesa = null;
-  let descOutro = null;
+  let tipoDespesa = null, descOutro = null;
   if (tipo === "despesa") {
-    tipoDespesa =
-      document.getElementById("tipo-despesa-sel")?.value || "despesas_gerais";
+    tipoDespesa = document.getElementById("tipo-despesa-sel")?.value || "despesas_gerais";
     if (tipoDespesa === "outro") {
-      descOutro =
-        document.getElementById("desc-outro-despesa")?.value?.trim() || "";
-      if (!descOutro) {
-        alert("Descreva o tipo da despesa.");
-        return;
-      }
+      descOutro = document.getElementById("desc-outro-despesa")?.value?.trim() || "";
+      if (!descOutro) { alert("Descreva o tipo da despesa."); return; }
     }
+  }
+
+  // ── Se for ABERTURA, cria a sessão primeiro ───────────────────────
+  if (tipo === "abertura") {
+    try {
+      await _abrirSessaoCaixa(valor, desc);
+      alert(`✅ Caixa aberto com fundo de Gs ${valor.toLocaleString("es-PY")}!`);
+      fecharModal("modal-caixa");
+      calcularFinanceiro();
+      return;
+    } catch (e) {
+      alert("Erro ao abrir caixa: " + e.message);
+      return;
+    }
+  }
+
+  // ── Para outros tipos, verifica se há sessão aberta ───────────────
+  if (!_sessaoCaixaAtiva) {
+    alert("⚠️ Nenhum caixa aberto. Abra o caixa antes de registrar movimentações.");
+    return;
   }
 
   const insert = {
     tipo,
     valor,
-    descricao: desc,
-    usuario_email: emailAtual,
-    tipo_despesa: tipoDespesa,
+    descricao:      desc,
+    usuario_email:  emailAtual,
+    tipo_despesa:   tipoDespesa,
     descricao_outro: descOutro,
+    sessao_id:      _sessaoCaixaAtiva.id,  // ← vínculo com a sessão
   };
 
   const { error } = await supa.from("movimentacoes_caixa").insert([insert]);
-  if (error) {
-    alert("Erro: " + error.message);
-    return;
-  }
+  if (error) { alert("Erro: " + error.message); return; }
+
   alert(t("alert.operacao_registrada"));
   fecharModal("modal-caixa");
   calcularFinanceiro();
 }
 
 async function fecharCaixaResumo() {
-  if (
-    !confirm(
-      "Fechar o caixa de hoje?\nIsso registra o fechamento e zera os totais exibidos.",
-    )
-  )
+  if (!_sessaoCaixaAtiva) {
+    alert("Nenhum caixa aberto para fechar.");
     return;
-  await calcularFinanceiro();
-  const s = _caixaState;
-  const fmt = (n) => "Gs " + n.toLocaleString("es-PY");
-  const lucro =
-    s.faturamento + s.totalEntradas - s.custoEntregas - s.totalSaidas;
+  }
 
-  // Registra fechamento no banco como movimentação
+  if (!confirm("Fechar o caixa desta sessão?\nIsso encerra a sessão e registra o fechamento.")) return;
+
+  await calcularFinanceiro(); // garante que _caixaState está atualizado
+  const s   = _caixaState;
+  const fmt = (n) => "Gs " + n.toLocaleString("es-PY");
+  const lucro = s.faturamento + s.totalEntradas - s.custoEntregas - s.totalSaidas;
+
   try {
-    await supa.from("movimentacoes_caixa").insert([
-      {
-        tipo: "fechamento",
-        valor: lucro,
-        descricao: `Fechamento ${new Date().toLocaleDateString("pt-BR")} | Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`,
-        usuario_email:
-          document.getElementById("user-email")?.innerText || "admin",
-      },
-    ]);
+    // 1. Marca a sessão como fechada
+    await supa
+      .from("sessoes_caixa")
+      .update({
+        fechado_em:       new Date().toISOString(),
+        valor_fechamento: lucro,
+        observacao:       `Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`,
+      })
+      .eq("id", _sessaoCaixaAtiva.id);
+
+    // 2. Registra movimentação de fechamento vinculada à sessão
+    await supa.from("movimentacoes_caixa").insert([{
+      tipo:          "fechamento",
+      valor:         lucro,
+      descricao:     `Fechamento ${new Date().toLocaleDateString("pt-BR")} | Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`,
+      usuario_email: document.getElementById("user-email")?.innerText || "admin",
+      sessao_id:     _sessaoCaixaAtiva.id,
+    }]);
   } catch (e) {
     console.warn("Aviso fechamento:", e.message);
   }
 
-  alert(`📊 FECHAMENTO DO DIA
+  alert(`📊 FECHAMENTO DA SESSÃO #${_sessaoCaixaAtiva.id}
 ═══════════════════════════
 Faturamento Total: ${fmt(s.faturamento)}
 
@@ -2180,35 +2405,19 @@ Faturamento Total: ${fmt(s.faturamento)}
 💵 RESULTADO: ${fmt(lucro)}
 ═══════════════════════════
 ✅ Dinheiro na gaveta: ${fmt(s.totalEfetivo)}
-Fechamento registrado!`);
+Sessão encerrada!`);
 
-  // Zera os cards na tela
-  [
-    "card-faturamento",
-    "card-custo-moto",
-    "card-lucro",
-    "total-pix",
-    "total-transf",
-    "total-cartao",
-    "total-efetivo",
-    "card-ticket-medio",
-  ].forEach((id) => {
+  // Limpa estado
+  _sessaoCaixaAtiva = null;
+  ["card-faturamento","card-custo-moto","card-lucro","total-pix","total-transf",
+   "total-cartao","total-efetivo","card-ticket-medio"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.innerText = "Gs 0";
   });
   const qEl = document.getElementById("card-qtd-pedidos");
   if (qEl) qEl.innerText = "0";
-  _caixaState = {
-    faturamento: 0,
-    custoEntregas: 0,
-    totalSaidas: 0,
-    totalEntradas: 0,
-    totalPix: 0,
-    totalTransf: 0,
-    totalCartao: 0,
-    totalEfetivo: 0,
-    qtdPedidos: 0,
-  };
+  _caixaState = { faturamento:0, custoEntregas:0, totalSaidas:0, totalEntradas:0,
+                  totalPix:0, totalTransf:0, totalCartao:0, totalEfetivo:0, qtdPedidos:0 };
 }
 
 // =========================================
@@ -2755,20 +2964,24 @@ function previewUpload(input) {
 
 async function salvarProduto() {
   const btn = event.target;
-  btn.innerText = "Salvando...";
   btn.disabled = true;
   try {
     const id = document.getElementById("prod-id").value;
     const fileInput = document.getElementById("prod-img-file");
     let urlFinal = document.getElementById("prod-img").value;
 
+    // ── Upload para o Cloudinary (substitui Supabase Storage) ──
     if (fileInput.files.length > 0) {
-      const file = fileInput.files[0];
-      const nomeArq = Date.now() + "-" + file.name.replace(/\s+/g, "-");
-      await supa.storage.from("produtos").upload(nomeArq, file);
-      const { data } = supa.storage.from("produtos").getPublicUrl(nomeArq);
-      urlFinal = data.publicUrl;
+      btn.innerText = "Enviando imagem...";
+      try {
+        urlFinal = await uploadImageToCloudinary(fileInput.files[0]);
+      } catch (uploadErr) {
+        alert("❌ Falha no upload da imagem: " + uploadErr.message + "\nO produto não foi salvo.");
+        return;
+      }
     }
+
+    btn.innerText = "Salvando...";
 
     const tipo = document.getElementById("prod-tipo-builder").value || "padrao";
 
@@ -3051,6 +3264,19 @@ async function salvarProduto() {
       configFinal = { __tipo: "combo", descricao_livre, itens_combo };
     }
 
+    if (tipo === "combo_fechado") {
+      const cfg = cfLerConfigBuilder();
+      if (!cfg.limite_total || cfg.limite_total < 1) {
+        alert("⚠️ Informe o limite total de itens do combo.");
+        return;
+      }
+      if (cfg.sabores.length === 0) {
+        alert("⚠️ Adicione ao menos 1 sabor ao Combo Fechado.");
+        return;
+      }
+      configFinal = cfg;
+    }
+
     // Extras por produto
     const temExtras = document.getElementById("prod-tem-extras").checked;
     if (temExtras) {
@@ -3225,6 +3451,10 @@ async function abrirModalProduto(produto = null, tipoInicial = null) {
   // CORREÇÃO: Limpa o file input para não reutilizar imagem anterior
   const fileInputReset = document.getElementById("prod-img-file");
   if (fileInputReset) fileInputReset.value = "";
+  const cfLista = document.getElementById("cf-sabores-lista");
+  if (cfLista) cfLista.innerHTML = "";
+  const cfLimite = document.getElementById("cf-limite");
+  if (cfLimite) cfLimite.value = "";
 
   let tipo = "padrao";
 
@@ -3341,6 +3571,9 @@ async function abrirModalProduto(produto = null, tipoInicial = null) {
         // os checkboxes de produtos são carregados async pelo _carregarComboSelect
         window._comboItensPresel = cfg.itens_combo || [];
       }
+      if (tipo === "combo_fechado") {
+        cfCarregarNoBuilder(cfg);
+      }
       // Variações de sabor
       if (tipo === "variacoes" && cfg.variacoes) {
         document.getElementById("variacoes-lista").innerHTML = "";
@@ -3413,6 +3646,7 @@ const BUILDER_MAP = {
   suco: "builder-suco",
   variacoes: "builder-variacoes",
   kg: "builder-kg",
+  combo_fechado: "builder-combo-fechado",
 };
 const BUILDER_HINTS = {
   shake: "🥤 Defina tamanhos (P/M/G) e sabores disponíveis.",
@@ -3432,6 +3666,7 @@ const _TIPO_BADGE_LABELS = {
   combo: "⭐ Combo",
   variacoes: "🎨 Variações",
   kg: "⚖️ Venda por Kg",
+  combo_fechado: "📦 Combo Fechado",
 };
 
 function selecionarTipoBuilder(tipo) {
@@ -3772,25 +4007,31 @@ function _pizzaSaboresDragInit() {
 async function uploadSaborImagem(fileInput, row) {
   if (!fileInput.files.length) return;
   const file = fileInput.files[0];
-  const nomeArq = `sabores/${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
   fileInput.disabled = true;
+
+  // Feedback visual no botão/label pai
+  const labelBtn = fileInput.closest("label");
+  const originalLabel = labelBtn ? labelBtn.innerHTML : null;
+  if (labelBtn) labelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
   try {
-    const { error } = await supa.storage.from("produtos").upload(nomeArq, file);
-    if (error) throw error;
-    const { data } = supa.storage.from("produtos").getPublicUrl(nomeArq);
+    // ── Upload para o Cloudinary (substitui Supabase Storage) ──
+    const url = await uploadImageToCloudinary(file);
+
     const inp =
       row.querySelector('[data-f="simg"]') ||
       row.querySelector('[data-f="img"]');
-    if (inp) inp.value = data.publicUrl;
+    if (inp) inp.value = url;
     const prev = row.querySelector("img.img-preview-mini");
     if (prev) {
-      prev.src = data.publicUrl;
+      prev.src = url;
       prev.style.display = "block";
     }
   } catch (e) {
     alert("Erro ao enviar imagem: " + e.message);
   } finally {
     fileInput.disabled = false;
+    if (labelBtn && originalLabel) labelBtn.innerHTML = originalLabel;
   }
 }
 
@@ -3991,6 +4232,73 @@ async function _carregarComboSelect() {
     </label>`,
     )
     .join("");
+}
+
+function cfAdicionarSabor(nome = "") {
+  const lista = document.getElementById("cf-sabores-lista");
+  if (!lista) return;
+ 
+  const id = "cf-s-" + Date.now() + Math.random().toString(36).slice(2, 6);
+  const row = document.createElement("div");
+  row.className = "cf-sabor-row";
+  row.dataset.cfId = id;
+  row.innerHTML = `
+    <input type="text" placeholder="Ex: Frango, Queijo, Carne…"
+           value="${nome.replace(/"/g, "&quot;")}"
+           oninput="cfAtualizarPreview()"
+           style="flex:1;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:0.88rem;outline:none">
+    <button type="button" class="cf-remove-sabor" title="Remover sabor"
+            onclick="cfRemoverSabor('${id}')">×</button>
+  `;
+  lista.appendChild(row);
+  row.querySelector("input").focus();
+  cfAtualizarPreview();
+}
+ 
+/** Remove uma linha de sabor */
+function cfRemoverSabor(id) {
+  const el = document.querySelector(`[data-cf-id="${id}"]`);
+  if (el) el.remove();
+  cfAtualizarPreview();
+}
+ 
+/** Lê o estado atual do builder e atualiza o preview JSON */
+function cfAtualizarPreview() {
+  const preview = document.getElementById("cf-json-preview");
+  if (!preview) return;
+  const cfg = cfLerConfigBuilder();
+  preview.textContent = JSON.stringify(cfg, null, 2);
+}
+ 
+/** Lê o formulário do builder e retorna o objeto de config */
+function cfLerConfigBuilder() {
+  const limite = parseInt(document.getElementById("cf-limite")?.value) || 0;
+  const sabores = [];
+ 
+  document.querySelectorAll("#cf-sabores-lista .cf-sabor-row").forEach((row) => {
+    const nome = row.querySelector("input")?.value?.trim();
+    if (nome) sabores.push({ id: row.dataset.cfId, nome });
+  });
+ 
+  return {
+    __tipo: "combo_fechado",
+    limite_total: limite,
+    sabores,
+  };
+}
+ 
+/** Popula o builder com uma config existente (modo edição) */
+function cfCarregarNoBuilder(cfg) {
+  if (!cfg || cfg.__tipo !== "combo_fechado") return;
+ 
+  const limiteEl = document.getElementById("cf-limite");
+  if (limiteEl) limiteEl.value = cfg.limite_total || "";
+ 
+  const lista = document.getElementById("cf-sabores-lista");
+  if (lista) lista.innerHTML = "";
+ 
+  (cfg.sabores || []).forEach((s) => cfAdicionarSabor(s.nome));
+  cfAtualizarPreview();
 }
 
 // ─── DUPLICAR PRODUTO ────────────────────────────────────────────
@@ -5900,15 +6208,14 @@ async function salvarBanner(num = 1) {
 
     if (fileInput?.files?.length) {
       const file = fileInput.files[0];
-      const nomeArq = `banner${suf}_${Date.now()}.${file.name.split(".").pop()}`;
-      const { error: uploadErr } = await supa.storage
-        .from("produtos")
-        .upload(nomeArq, file, { upsert: true });
-      if (uploadErr) throw uploadErr;
-      const { data: urlData } = supa.storage
-        .from("produtos")
-        .getPublicUrl(nomeArq);
-      urlFinal = urlData.publicUrl;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando imagem...';
+      // ── Upload para o Cloudinary (substitui Supabase Storage) ──
+      try {
+        urlFinal = await uploadImageToCloudinary(file);
+      } catch (uploadErr) {
+        alert("❌ Falha no upload do banner: " + uploadErr.message + "\nO banner não foi salvo.");
+        return;
+      }
     }
 
     if (!urlFinal) {
@@ -6203,29 +6510,29 @@ async function salvarPersonalizacao() {
     // Upload do ícone se houver arquivo selecionado
     const iconeFile = document.getElementById("cfg-icone-file")?.files?.[0];
     if (iconeFile) {
-      const ext = iconeFile.name.split(".").pop();
-      const nomeArq = `icone-loja-${Date.now()}.${ext}`;
-      const { error: upErr } = await supa.storage
-        .from("produtos")
-        .upload(nomeArq, iconeFile, { upsert: true });
-      if (upErr) throw new Error("Erro no upload: " + upErr.message);
-      const { data: urlData } = supa.storage
-        .from("produtos")
-        .getPublicUrl(nomeArq);
-      dados.icone_url = urlData.publicUrl;
-      dados.logo_url = urlData.publicUrl;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando ícone...';
+      // ── Upload para o Cloudinary (substitui Supabase Storage) ──
+      let iconeUrl;
+      try {
+        iconeUrl = await uploadImageToCloudinary(iconeFile);
+      } catch (uploadErr) {
+        alert("❌ Falha no upload do ícone: " + uploadErr.message + "\nA personalização não foi salva.");
+        return;
+      }
+      dados.icone_url = iconeUrl;
+      dados.logo_url = iconeUrl;
       // Atualiza preview
       const prev = document.getElementById("cfg-icone-preview");
       const box = document.getElementById("cfg-icone-preview-box");
       if (prev) {
-        prev.src = dados.icone_url;
+        prev.src = iconeUrl;
       }
       if (box) {
         box.style.display = "block";
       }
       // Preenche campo URL
       const urlInp = document.getElementById("cfg-logo-url");
-      if (urlInp) urlInp.value = dados.icone_url;
+      if (urlInp) urlInp.value = iconeUrl;
     }
 
     if (Object.keys(dados).length > 0) {
@@ -6256,16 +6563,8 @@ async function _uploadLogoIdentidade(input) {
   if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
   try {
-    const ext = file.name.split(".").pop();
-    const nomeArq = `logo-${Date.now()}.${ext}`;
-    const { error: upErr } = await supa.storage
-      .from("produtos")
-      .upload(nomeArq, file, { upsert: true });
-    if (upErr) throw upErr;
-    const { data: urlData } = supa.storage
-      .from("produtos")
-      .getPublicUrl(nomeArq);
-    const url = urlData.publicUrl;
+    // ── Upload para o Cloudinary (substitui Supabase Storage) ──
+    const url = await uploadImageToCloudinary(file);
 
     // Preenche o campo de URL de texto
     const urlInput = document.getElementById("cfg-logo-url");
@@ -6584,6 +6883,172 @@ async function logout() {
   const { error } = await supa.auth.signOut();
   if (error) alert("Erro ao sair: " + error.message);
   else window.location.href = "login.html";
+}
+
+// ─────────────────────────────────────────────────────────────
+// ALTERAR SENHA
+// ─────────────────────────────────────────────────────────────
+function abrirModalAlterarSenha() {
+  const html = `
+    <div id="modal-alterar-senha" class="modal-overlay" style="display:flex;z-index:9999;backdrop-filter:blur(4px)">
+      <div style="background:#fff;border-radius:20px;width:100%;max-width:420px;
+        box-shadow:0 24px 60px rgba(0,0,0,0.18);overflow:hidden;font-family:inherit">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#1a7a2e 100%);
+          padding:24px 24px 20px;position:relative">
+          <button onclick="document.getElementById('modal-alterar-senha').remove()"
+            style="position:absolute;top:14px;right:16px;background:rgba(255,255,255,0.12);
+            border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:14px;
+            cursor:pointer">✕</button>
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="background:rgba(255,255,255,0.12);border-radius:12px;padding:10px;font-size:22px">🔐</div>
+            <div>
+              <div style="color:#fff;font-size:1.1rem;font-weight:700">Alterar Senha</div>
+              <div style="color:rgba(255,255,255,0.55);font-size:0.78rem;margin-top:2px">Escolha uma senha forte</div>
+            </div>
+          </div>
+        </div>
+        <!-- Body -->
+        <div style="padding:22px 24px 18px">
+          <div style="margin-bottom:16px">
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;
+              letter-spacing:.4px;display:block;margin-bottom:6px">Nova senha</label>
+            <div style="position:relative">
+              <input type="password" id="wl-nova-senha" placeholder="Digite a nova senha"
+                autocomplete="new-password" oninput="_wlAvaliarSenha(this.value)"
+                style="width:100%;padding:10px 42px 10px 13px;border:2px solid #e2e8f0;
+                border-radius:10px;font-size:0.9rem;outline:none;box-sizing:border-box"
+                onfocus="this.style.borderColor='#1a7a2e'" onblur="this.style.borderColor='#e2e8f0'"/>
+              <span onclick="_wlToggleSenha('wl-nova-senha','wl-eye1')" id="wl-eye1"
+                style="position:absolute;right:11px;top:50%;transform:translateY(-50%);
+                cursor:pointer;font-size:17px;user-select:none">👁</span>
+            </div>
+            <!-- Barra de força -->
+            <div style="margin-top:7px">
+              <div style="display:flex;gap:4px;height:5px;border-radius:4px;overflow:hidden">
+                <div id="wl-b1" style="flex:1;background:#e2e8f0;border-radius:4px;transition:background .3s"></div>
+                <div id="wl-b2" style="flex:1;background:#e2e8f0;border-radius:4px;transition:background .3s"></div>
+                <div id="wl-b3" style="flex:1;background:#e2e8f0;border-radius:4px;transition:background .3s"></div>
+                <div id="wl-b4" style="flex:1;background:#e2e8f0;border-radius:4px;transition:background .3s"></div>
+              </div>
+              <div id="wl-forca-lbl" style="font-size:0.72rem;color:#aaa;margin-top:4px;min-height:14px"></div>
+            </div>
+            <!-- Critérios -->
+            <div style="margin-top:9px;display:grid;grid-template-columns:1fr 1fr;gap:3px 10px">
+              <div id="wl-c1" style="font-size:.72rem;color:#bbb;transition:color .25s">✗ Mín. 8 caracteres</div>
+              <div id="wl-c2" style="font-size:.72rem;color:#bbb;transition:color .25s">✗ Número</div>
+              <div id="wl-c3" style="font-size:.72rem;color:#bbb;transition:color .25s">✗ Maiúscula</div>
+              <div id="wl-c4" style="font-size:.72rem;color:#bbb;transition:color .25s">✗ Caractere especial</div>
+            </div>
+          </div>
+          <div style="margin-bottom:6px">
+            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;
+              letter-spacing:.4px;display:block;margin-bottom:6px">Confirmar senha</label>
+            <div style="position:relative">
+              <input type="password" id="wl-conf-senha" placeholder="Repita a nova senha"
+                autocomplete="new-password" oninput="_wlVerificarMatch()"
+                style="width:100%;padding:10px 42px 10px 13px;border:2px solid #e2e8f0;
+                border-radius:10px;font-size:0.9rem;outline:none;box-sizing:border-box"
+                onfocus="this.style.borderColor='#1a7a2e'" onblur="this.style.borderColor='#e2e8f0'"/>
+              <span onclick="_wlToggleSenha('wl-conf-senha','wl-eye2')" id="wl-eye2"
+                style="position:absolute;right:11px;top:50%;transform:translateY(-50%);
+                cursor:pointer;font-size:17px;user-select:none">👁</span>
+            </div>
+            <div id="wl-match-lbl" style="font-size:0.78rem;margin-top:5px;min-height:16px"></div>
+          </div>
+          <div id="wl-msg-senha" style="display:none;color:#e74c3c;font-size:0.82rem;
+            background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-top:10px"></div>
+        </div>
+        <!-- Footer -->
+        <div style="padding:0 24px 22px;display:flex;gap:10px">
+          <button onclick="document.getElementById('modal-alterar-senha').remove()"
+            style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:none;border-radius:10px;
+            font-size:0.88rem;font-weight:600;cursor:pointer">Cancelar</button>
+          <button id="wl-btn-salvar-senha" onclick="wlSalvarNovaSenha()"
+            style="flex:2;padding:11px;background:linear-gradient(135deg,#1a7a2e,#145a22);
+            color:#fff;border:none;border-radius:10px;font-size:0.88rem;font-weight:700;cursor:pointer">
+            🔒 Salvar Nova Senha
+          </button>
+        </div>
+      </div>
+    </div>`;
+  const old = document.getElementById("modal-alterar-senha");
+  if (old) old.remove();
+  document.body.insertAdjacentHTML("beforeend", html);
+  setTimeout(() => document.getElementById("wl-nova-senha")?.focus(), 120);
+}
+
+function _wlToggleSenha(inputId, spanId) {
+  const inp = document.getElementById(inputId);
+  const sp  = document.getElementById(spanId);
+  if (!inp) return;
+  inp.type = inp.type === "password" ? "text" : "password";
+  if (sp) sp.textContent = inp.type === "password" ? "👁" : "🙈";
+}
+
+function _wlAvaliarSenha(v) {
+  const checks = [v.length >= 8, /\d/.test(v), /[A-Z]/.test(v), /[^A-Za-z0-9]/.test(v)];
+  const txts   = ["Mín. 8 caracteres","Número","Maiúscula","Caractere especial"];
+  const cores  = ["#e2e8f0","#ef4444","#f97316","#eab308","#22c55e"];
+  const labels = ["","Fraca 😬","Razoável 😐","Boa 👍","Forte 💪"];
+  const score  = checks.filter(Boolean).length;
+
+  checks.forEach((ok, i) => {
+    const el = document.getElementById("wl-c" + (i + 1));
+    if (!el) return;
+    el.textContent = (ok ? "✓ " : "✗ ") + txts[i];
+    el.style.color = ok ? "#22c55e" : "#bbb";
+  });
+  for (let i = 1; i <= 4; i++) {
+    const b = document.getElementById("wl-b" + i);
+    if (b) b.style.background = i <= score ? cores[score] : "#e2e8f0";
+  }
+  const fl = document.getElementById("wl-forca-lbl");
+  if (fl) { fl.textContent = labels[score]; fl.style.color = cores[score]; }
+  _wlVerificarMatch();
+}
+
+function _wlVerificarMatch() {
+  const a   = document.getElementById("wl-nova-senha")?.value || "";
+  const b   = document.getElementById("wl-conf-senha")?.value || "";
+  const lbl = document.getElementById("wl-match-lbl");
+  const inp = document.getElementById("wl-conf-senha");
+  if (!lbl || !b) return;
+  const ok = a === b && b.length > 0;
+  lbl.textContent = ok ? "✓ Senhas coincidem" : "✗ Senhas não coincidem";
+  lbl.style.color = ok ? "#22c55e" : "#ef4444";
+  if (inp) inp.style.borderColor = b.length > 0 ? (ok ? "#22c55e" : "#ef4444") : "#e2e8f0";
+}
+
+async function wlSalvarNovaSenha() {
+  const nova   = document.getElementById("wl-nova-senha")?.value || "";
+  const conf   = document.getElementById("wl-conf-senha")?.value || "";
+  const msgEl  = document.getElementById("wl-msg-senha");
+  const showErr = (t) => { msgEl.textContent = t; msgEl.style.display = "block"; };
+  msgEl.style.display = "none";
+
+  if (nova.length < 6)  return showErr("A senha deve ter pelo menos 6 caracteres.");
+  if (nova !== conf)    return showErr("As senhas não coincidem.");
+
+  const btn = document.getElementById("wl-btn-salvar-senha");
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Salvando..."; btn.style.opacity = ".7"; }
+
+  const { error } = await supa.auth.updateUser({ password: nova });
+
+  if (btn) { btn.disabled = false; btn.textContent = "🔒 Salvar Nova Senha"; btn.style.opacity = "1"; }
+
+  if (error) {
+    showErr("Erro: " + error.message);
+  } else {
+    document.getElementById("modal-alterar-senha").remove();
+    const toast = document.createElement("div");
+    toast.textContent = "✅ Senha alterada com sucesso!";
+    toast.style.cssText = "position:fixed;bottom:28px;left:50%;transform:translateX(-50%);" +
+      "background:#1a7a2e;color:#fff;padding:12px 24px;border-radius:12px;font-weight:600;" +
+      "font-size:0.9rem;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.2)";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3200);
+  }
 }
 
 // =========================================
@@ -7501,7 +7966,224 @@ function _pdvModalConfirmar(cacheKey) {
     });
   }
 }
-let _toledoPort = null; // Web Serial: porta da balança Toledo
+let _toledoPort = null;          // Web Serial: porta da balança Toledo
+let _toledoReader = null;        // Reader ativo (necessário para cancel() no fechamento)
+let _toledoLeituraAtiva = false; // Flag: evita readers simultâneos na mesma porta
+
+// ── GAVETA AUTOMÁTICA — DC-335 via Ethernet ──────────────────────────────────
+const _GAVETA_BRIDGE_URL = "http://127.0.0.1:9091/abrir";
+
+function _gavetaDeveAbrir(formaPagamento, obsPagamento = "") {
+  if (!formaPagamento) return false;
+  const fp = formaPagamento.toLowerCase();
+
+  // Multipagamento: abre gaveta SOMENTE se ao menos um componente
+  // for Efetivo/Dinheiro ou Cartão — ignora divisões só com PIX, etc.
+  if (fp === "multipagamento") {
+    try {
+      const partes = JSON.parse(obsPagamento || "[]");
+      return Array.isArray(partes) && partes.some((p) =>
+        _gavetaDeveAbrir(p.metodo || "")
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  return (
+    fp.includes("efetivo")  ||
+    fp.includes("dinheiro") ||
+    fp.includes("cart")     ||
+    fp.includes("debito")   ||
+    fp.includes("credito")  ||
+    fp.includes("crédito")  ||
+    fp.includes("débito")
+  );
+}
+
+async function _abrirGavetaDC335(contexto = "") {
+  try {
+    const res = await fetch(_GAVETA_BRIDGE_URL, { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    console.log(`[Gaveta] ✅ Aberta${contexto ? " — " + contexto : ""}`);
+  } catch (err) {
+    console.warn(`[Gaveta] ⚠️ Bridge offline ou gaveta inacessível${contexto ? " (" + contexto + ")" : ""}: ${err.message}`);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  LEITURA CONTÍNUA — Toledo Prix 3 Fit (Prt1/Prt2)
+//  Protocolo: stream contínuo a 4800 baud, sem disparo manual.
+//  Formato de saída da balança: 5 dígitos ASCII = peso em gramas (ex: "01490" = 1490g).
+//  A função é separada de _kgConectarBalanca para poder ser chamada tanto na
+//  reconexão automática (modal já aberto + porta já conectada) quanto no fluxo
+//  normal de conexão nova.
+// ──────────────────────────────────────────────────────────────────────────────
+async function _kgIniciarLeituraBalanca() {
+  if (!_toledoPort) {
+    console.warn("[Balança] _kgIniciarLeituraBalanca: _toledoPort é null");
+    return;
+  }
+  if (_toledoLeituraAtiva) {
+    console.log("[Balança] Leitura já ativa — ignorando chamada duplicada");
+    return;
+  }
+
+  _toledoLeituraAtiva = true;
+  console.log("[Balança] Iniciando leitura contínua...");
+
+  const txtBal = document.getElementById("_kg-balanca-txt");
+  const btnBal = document.getElementById("_kg-btn-balanca");
+
+  // Adquire reader; se a readable stream já estiver locada (reader anterior não liberado),
+  // aguarda 200ms e tenta uma vez mais antes de desistir
+  try {
+    _toledoReader = _toledoPort.readable.getReader();
+  } catch (e) {
+    console.warn("[Balança] Readable locked — aguardando 200ms e tentando novamente:", e.message);
+    await new Promise(r => setTimeout(r, 200));
+    try {
+      _toledoReader = _toledoPort.readable.getReader();
+    } catch (e2) {
+      console.error("[Balança] Falha ao obter reader (porta em uso?):", e2.message);
+      _toledoLeituraAtiva = false;
+      if (txtBal) txtBal.textContent = "⚠️ Porta ocupada — reconecte a balança";
+      return;
+    }
+  }
+
+  // latin1 evita exceções com bytes > 127 que a Toledo pode enviar como delimitadores de frame
+  const decoder = new TextDecoder("latin1");
+
+  let buffer        = "";
+  let ultimoGramas  = -1;
+  let contEstavel   = 0;
+  // Quantos chunks consecutivos com o mesmo valor são necessários para confirmar a leitura.
+  // Valor 2 é suficiente para stream contínuo ~5 Hz; aumente se houver ruído.
+  const ESTAVEL_MIN = 2;
+
+  // ── Parser multi-formato Toledo Prix 3 Fit ──────────────────────────────────
+  // Formato 1 (Prt1 contínuo): "01490\r\n" → 1490g
+  // Formato 2 (com unidade):   "  1.490 kg\r\n" ou "1,490kg\r\n"
+  // Formato 3 (prefixo ST):    "ST,GS,+  1.490kg\r\n"
+  // Formato 4 (raw stream):    bytes consecutivos sem \r\n — ex: "014900149001490"
+  // ────────────────────────────────────────────────────────────────────────────
+  function _parsearGramas(texto) {
+    // Formato 1 — "kg" explícito: "1.490 kg", "1,490kg", "ST,GS,+ 1.490kg"
+    const mKg = texto.match(/([0-9]+[.,][0-9]{1,3})\s*kg/i);
+    if (mKg) {
+      const v = parseFloat(mKg[1].replace(",", "."));
+      if (!isNaN(v) && v >= 0) return Math.round(v * 1000);
+    }
+
+    // Formato 2 — Toledo Prix 3 Fit Prt1 (stream contínuo sem unidade):
+    // Frame: STX(0x02) + "NN.NNN" + CR(0x0D)
+    // Exemplos reais: "00.124" = 124g | "01.490" = 1490g | "00.000" = 0g
+    const mToledo = texto.match(/(\d{1,2}[.,]\d{3})/);
+    if (mToledo) {
+      const v = parseFloat(mToledo[1].replace(",", "."));
+      if (!isNaN(v) && v >= 0) return Math.round(v * 1000);
+    }
+
+    // Formato 3 — inteiro 5-6 dígitos = gramas direto: "01490" = 1490g
+    const mInt = texto.match(/(\d{5,6})/);
+    if (mInt) {
+      const v = parseInt(mInt[1], 10);
+      if (!isNaN(v) && v >= 0) return v;
+    }
+    return null;
+  }
+
+  try {
+    while (true) {
+      const { value, done } = await _toledoReader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      buffer += chunk;
+
+      // Log bruto nos primeiros 10 chunks para diagnóstico (desativa após)
+      if (contEstavel === 0 && buffer.length <= 200) {
+        const hex = Array.from(value).map(b => b.toString(16).padStart(2,"0")).join(" ");
+        console.log(`[Balança] RAW HEX: ${hex}  |  TEXT: ${JSON.stringify(chunk)}`);
+      }
+
+      // Descarta dados antigos — janela deslizante de 128 chars
+      if (buffer.length > 128) buffer = buffer.slice(-128);
+
+      // Tenta extrair linhas completas primeiro (formato com \r\n)
+      const linhas = buffer.split(/[\r\n]+/);
+      // O último elemento pode ser fragmento incompleto — preserva
+      buffer = linhas.pop() ?? "";
+
+      let grama = null;
+
+      // Processa linhas completas se houver
+      for (const linha of linhas) {
+        const candidato = _parsearGramas(linha.trim());
+        if (candidato !== null) { grama = candidato; break; }
+      }
+
+      // Fallback: tenta extrair do buffer acumulado (stream sem \r\n)
+      if (grama === null) {
+        const candidato = _parsearGramas(buffer);
+        if (candidato !== null) grama = candidato;
+      }
+
+      if (grama === null) continue;
+
+      // Estabilidade: mesmo valor por ESTAVEL_MIN ciclos → confirma
+      if (grama === ultimoGramas) {
+        contEstavel++;
+      } else {
+        ultimoGramas = grama;
+        contEstavel  = 1;
+      }
+
+      // Atualiza label em tempo real (antes de confirmar estabilidade)
+      if (txtBal) {
+        const kgFmt = (grama / 1000).toFixed(3).replace(".", ",");
+        txtBal.textContent = grama > 0
+          ? `🟢 Lendo: ${kgFmt} kg (${grama}g)${contEstavel < ESTAVEL_MIN ? " ⏳" : " ✔"}`
+          : "🟢 Balança zerada — aguardando objeto...";
+      }
+
+      if (contEstavel < ESTAVEL_MIN) continue;
+
+      // ── Peso estável → injeta no input ──────────────────────────────────────
+      const inp = document.getElementById("_kg-input-g");
+      if (inp && parseInt(inp.value || "0") !== grama) {
+        console.log(`[Balança] Peso confirmado: ${grama}g`);
+        inp.value = grama > 0 ? grama : "";
+        window._kgAtualizarPreview?.();
+        inp.style.borderColor = "#16a34a";
+        inp.style.background  = "#f0fdf4";
+        setTimeout(() => {
+          if (inp) { inp.style.borderColor = "#0891b2"; inp.style.background = ""; }
+        }, 800);
+      }
+    }
+  } catch (e) {
+    if (e.name !== "AbortError") {
+      console.error("[Balança] Erro durante leitura:", e.name, e.message);
+      if (txtBal) txtBal.textContent = "🔴 Balança desconectada — clique para reconectar";
+      if (btnBal) {
+        btnBal.style.background    = "#fff";
+        btnBal.style.borderStyle   = "dashed";
+        btnBal.style.borderColor   = "#0891b2";
+        btnBal.style.color         = "#0891b2";
+      }
+      _toledoPort = null;
+    } else {
+      console.log("[Balança] Leitura encerrada (AbortError — desconexão intencional)");
+    }
+  } finally {
+    try { _toledoReader.releaseLock(); } catch (_) {}
+    _toledoReader       = null;
+    _toledoLeituraAtiva = false;
+    console.log("[Balança] Reader liberado.");
+  }
+}
 
 function _mostrarModalPesoPDV(produto, precoKg) {
   document.getElementById("pdv-kg-modal")?.remove();
@@ -7670,108 +8352,49 @@ function _mostrarModalPesoPDV(produto, precoKg) {
       return;
     }
 
-    // Se porta já conectada, desconectar
+    // Se porta já conectada → desconectar (cancela reader antes de fechar a porta)
     if (_toledoPort) {
-      try {
-        await _toledoPort.close();
-      } catch (_) {}
-      _toledoPort = null;
+      try { if (_toledoReader) await _toledoReader.cancel(); } catch (_) {}
+      try { await _toledoPort.close(); } catch (_) {}
+      _toledoPort           = null;
+      _toledoReader         = null;
+      _toledoLeituraAtiva   = false;
       if (txt) txt.textContent = "Conectar Balança (Toledo Prix 3)";
-      if (btn) btn.style.background = "#fff";
+      if (btn) {
+        btn.style.background  = "#fff";
+        btn.style.borderStyle = "dashed";
+        btn.style.borderColor = "#0891b2";
+        btn.style.color       = "#0891b2";
+      }
       return;
     }
 
     try {
       if (txt) txt.textContent = "⏳ Aguardando seleção da porta...";
       const port = await navigator.serial.requestPort();
+
+      // ── Parâmetros seriais da Toledo Prix 3 Fit ──
+      // Confirme em Menu → C16: baud=4800, 8N1
       await port.open({
-        baudRate: 9600,
+        baudRate: 4800,
         dataBits: 8,
         stopBits: 1,
-        parity: "none",
+        parity:   "none",
       });
+
       _toledoPort = port;
-      if (txt)
-        txt.textContent = "🟢 Balança conectada — Pressione PRINT na balança";
+
+      if (txt) txt.textContent = "🟢 Balança conectada — aguardando peso...";
       if (btn) {
-        btn.style.background = "#ecfdf5";
+        btn.style.background  = "#ecfdf5";
+        btn.style.borderStyle = "solid";
         btn.style.borderColor = "#16a34a";
-        btn.style.color = "#16a34a";
+        btn.style.color       = "#16a34a";
       }
 
-      // Leitura contínua
-      const reader = port.readable.getReader();
-      let buffer = "";
+      // Delega toda a leitura contínua para _kgIniciarLeituraBalanca
+      _kgIniciarLeituraBalanca();
 
-      const lerDados = async () => {
-        try {
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += new TextDecoder().decode(value);
-
-            // Protocolo Toledo Prix 3 Fit: envia linha ao pressionar PRINT
-            // Formatos possíveis:
-            //   "  0.300 kg\r\n"  →  300g
-            //   " 1.230 kg\r\n"   →  1230g
-            //   "P  0.300\r\n"    →  variação com prefixo P
-            //   "ST,GS,+  0.300kg\r\n"  → formato contínuo
-            if (buffer.includes("\n") || buffer.includes("\r")) {
-              const linhas = buffer.split(/[\r\n]+/);
-              buffer = linhas.pop() || ""; // mantém fragmento incompleto
-
-              for (const linha of linhas) {
-                const limpa = linha.trim();
-                if (!limpa) continue;
-
-                // Extrai número de kg: procura padrão X.XXX ou X,XXX seguido de "kg" (opcional)
-                const match =
-                  limpa.match(/([\d]+[.,][\d]{1,3})\s*kg?/i) ||
-                  limpa.match(/[STPG,\s]*([\d]+[.,][\d]{1,3})/);
-
-                if (match) {
-                  const kgStr = match[1].replace(",", ".");
-                  const kgVal = parseFloat(kgStr);
-                  if (!isNaN(kgVal) && kgVal > 0) {
-                    const gramas = Math.round(kgVal * 1000);
-                    // Preenche input e atualiza preview
-                    const inp = document.getElementById("_kg-input-g");
-                    if (inp) {
-                      inp.value = gramas;
-                      window._kgAtualizarPreview();
-                      // Flash visual de confirmação
-                      inp.style.borderColor = "#16a34a";
-                      inp.style.background = "#f0fdf4";
-                      setTimeout(() => {
-                        if (inp) {
-                          inp.style.borderColor = "#0891b2";
-                          inp.style.background = "";
-                        }
-                      }, 1200);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          if (_toledoPort) {
-            if (txt) txt.textContent = "🔴 Balança desconectada";
-            if (btn) {
-              btn.style.background = "#fff";
-              btn.style.borderColor = "#0891b2";
-              btn.style.color = "#0891b2";
-            }
-            _toledoPort = null;
-          }
-        } finally {
-          try {
-            reader.releaseLock();
-          } catch (_) {}
-        }
-      };
-
-      lerDados();
     } catch (e) {
       if (txt) txt.textContent = "Conectar Balança (Toledo Prix 3)";
       if (e.name !== "NotFoundError") {
@@ -7985,8 +8608,44 @@ function _mostrarUpsellExtrasPDV(produto, extras) {
   }, 10000);
 }
 
+// ── TROCO / VUELTA (Efetivo) ───────────────────────────────────────────
+function pdvCalcTroco() {
+  const totalEl = document.getElementById("balcao-total");
+  const recebidoEl = document.getElementById("pdv-valor-recebido");
+  const trocoRow = document.getElementById("pdv-troco-row");
+  const trocoVal = document.getElementById("pdv-troco-val");
+  if (!totalEl || !recebidoEl || !trocoRow || !trocoVal) return;
+
+  const total = parseInt(totalEl.innerText.replace(/\D/g, "") || "0") || 0;
+  const recebido = parseInt(recebidoEl.value || "0") || 0;
+
+  if (recebido > 0 && total > 0) {
+    const troco = recebido - total;
+    trocoRow.style.display = "flex";
+    trocoVal.textContent = Math.max(0, troco).toLocaleString("es-PY");
+    trocoRow.style.background = troco >= 0 ? "#f0fdf4" : "#fff1f2";
+    trocoRow.style.borderColor = troco >= 0 ? "#86efac" : "#fca5a5";
+    trocoVal.style.color = troco >= 0 ? "#15803d" : "#dc2626";
+    trocoVal.textContent = (troco >= 0 ? "" : "⚠️ Falta Gs ") + Math.abs(troco).toLocaleString("es-PY");
+    trocoRow.querySelector("span:first-child").textContent = troco >= 0 ? "💵 Troco / Vuelta" : "💸 Valor insuficiente";
+  } else {
+    trocoRow.style.display = "none";
+  }
+}
+
 function removerItemPDV(idx) {
   carrinhoPDV.splice(idx, 1);
+  atualizarCarrinhoPDV();
+}
+
+// Edição inline de observação de item do carrinho PDV
+function pdvEditarObs(idx) {
+  const item = carrinhoPDV[idx];
+  if (!item) return;
+  // Modal leve inline — usa prompt nativo para não precisar de HTML extra
+  const nova = prompt(`Observação para "${item.nome}":`, item.obs || "");
+  if (nova === null) return; // cancelou
+  carrinhoPDV[idx].obs = nova.trim();
   atualizarCarrinhoPDV();
 }
 
@@ -8051,6 +8710,9 @@ function atualizarCarrinhoPDV() {
     carrinhoPDV.forEach((item, idx) => {
       total += item.preco * item.qtd;
       const row = document.createElement("tr");
+      const obsHtml = item.obs
+        ? `<div style="font-size:0.68rem;color:#6b7280;font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">📝 ${item.obs}</div>`
+        : '';
       if (item._isKg) {
         const g = item.peso_gramas || 0;
         const pesofmt =
@@ -8061,16 +8723,20 @@ function atualizarCarrinhoPDV() {
                 .replace(".", ",") + "kg"
             : g + "g";
         row.innerHTML = `
-          <td class="pdv-item-nome"><span style="color:#0891b2;font-size:0.72rem">⚖️ ${pesofmt}</span> ${item.nome}</td>
+          <td class="pdv-item-nome"><span style="color:#0891b2;font-size:0.72rem">⚖️ ${pesofmt}</span> ${item.nome}${obsHtml}</td>
           <td class="tc" style="color:#0891b2;font-size:0.7rem">kg</td>
           <td class="tr" style="font-size:0.7rem;color:#666">—</td>
-          <td class="tr">Gs ${item.preco.toLocaleString("es-PY")} <button class="pdv-item-remove" onclick="removerItemPDV(${idx})">✕</button></td>`;
+          <td class="tr" style="white-space:nowrap">Gs ${item.preco.toLocaleString("es-PY")}
+            <button class="pdv-item-edit" onclick="pdvEditarObs(${idx})" title="Observação">✏️</button>
+            <button class="pdv-item-remove" onclick="removerItemPDV(${idx})" title="Remover">✕</button></td>`;
       } else {
         row.innerHTML = `
-          <td class="pdv-item-nome">${item.nome}</td>
+          <td class="pdv-item-nome">${item.nome}${obsHtml}</td>
           <td class="tc pdv-item-qtd">${item.qtd}×</td>
           <td class="tr" style="font-size:0.7rem;color:#666">Gs ${item.preco.toLocaleString("es-PY")}</td>
-          <td class="tr">Gs ${(item.preco * item.qtd).toLocaleString("es-PY")} <button class="pdv-item-remove" onclick="removerItemPDV(${idx})">✕</button></td>`;
+          <td class="tr" style="white-space:nowrap">Gs ${(item.preco * item.qtd).toLocaleString("es-PY")}
+            <button class="pdv-item-edit" onclick="pdvEditarObs(${idx})" title="Observação">✏️</button>
+            <button class="pdv-item-remove" onclick="removerItemPDV(${idx})" title="Remover">✕</button></td>`;
       }
       lista.appendChild(row);
     });
@@ -8140,6 +8806,17 @@ function atualizarInfoPagPDV(total) {
   infoBox.style.display = "none";
   if (boxMultiPDV) boxMultiPDV.style.display = "none";
   if (selectPag) selectPag.style.display = "";
+
+  // Mostrar/ocultar box Efetivo (valor recebido + troco)
+  const efetivoBox = document.getElementById("pdv-efetivo-box");
+  if (efetivoBox) {
+    if (pag === "Efetivo") {
+      efetivoBox.style.display = "block";
+      pdvCalcTroco();
+    } else {
+      efetivoBox.style.display = "none";
+    }
+  }
 
   if (pag === "CartaoBR" && total > 0) {
     infoBox.style.display = "block";
@@ -8386,6 +9063,7 @@ async function salvarPedidoBalcao() {
     nome: i.nome,
     preco: i.preco,
     qtd: i.qtd,
+    variacao: i.variacao || "",
     montagem: i.montagem || [],
     obs: i.obs || "",
     categoria_slug: i.categoria_slug || "",
@@ -8512,6 +9190,14 @@ async function salvarPedidoBalcao() {
   }
   // Descontar estoque imediatamente (PDV não passa por mudarStatus)
   if (novoPedido?.id) await _descontarEstoqueVenda(novoPedido.id, novosItens);
+
+  // ── Gaveta automática ─────────────────────────────────────────────────────
+  // Abre apenas no PDV, para Efetivo, Cartão (déb/créd) e Multipagamento
+  // que contenha ao menos um desses meios. PIX e similares não abrem gaveta.
+  // Falha silenciosamente — venda NÃO é bloqueada se a gaveta não responder.
+  if (_gavetaDeveAbrir(pag, obsPagPDV)) {
+    _abrirGavetaDC335(`venda #${novoPedido?.id ?? "PDV"} — ${pag}`);
+  }
 
   if (_pdvCashbackUsando && tel) {
     const descCash = pdvGetCashbackDesconto(totalNovo);
@@ -8850,11 +9536,12 @@ async function finalizarMesa(id) {
       .from("pedidos")
       .update({
         status: "entregue",
-        tempo_entregue: new Date().toISOString(), // ← registra hora de fechamento
+        tempo_entregue: new Date().toISOString(),
       })
       .eq("id", id);
     carregarMonitorMesas();
     if (typeof calcularFinanceiro === "function") calcularFinanceiro();
+    // Gaveta: não abre no fechamento de mesa — apenas vendas PDV abrem a gaveta.
   }
 }
 
