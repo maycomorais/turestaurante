@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -340,15 +340,15 @@
   <div class="header-brand">
     <img id="tela-logo" class="header-logo" src="" alt="Logo">
     <div>
-      <div class="header-nome" id="tela-nome">PAINEL DE TURNOS</div>
-      <div class="header-sub" id="hdr-sub">Retire seu pedido quando o número aparecer em <span style="color:#22c55e;font-weight:700">PRONTO</span></div>
+      <div class="header-nome" id="tela-nome">PANEL DE TURNOS</div>
+      <div class="header-sub" id="hdr-sub">Retire su pedido cuando el número aparezca en <span style="color:#22c55e;font-weight:700">LISTO</span></div>
     </div>
   </div>
   <div class="header-right">
     <div class="header-actions">
-      <button class="btn-hdr active" id="btn-pt" onclick="setLang('pt')">PT</button>
-      <button class="btn-hdr" id="btn-es" onclick="setLang('es')">ES</button>
-      <button class="btn-hdr btn-cores" onclick="abrirConfig()">🎨 Cores</button>
+      <button class="btn-hdr" id="btn-pt" onclick="setLang('pt')">PT</button>
+      <button class="btn-hdr active" id="btn-es" onclick="setLang('es')">ES</button>
+      <button class="btn-hdr btn-cores" onclick="abrirConfig()">🎨 Colores</button>
     </div>
     <div class="header-clock">
       <div class="clock-time" id="clock-time">--:--</div>
@@ -363,15 +363,15 @@
     <div class="col-header">
       <div class="col-icon">🔥</div>
       <div>
-        <div class="col-title" id="title-preparo">Em Preparo</div>
-        <div class="col-subtitle" id="sub-preparo">Seu pedido está sendo preparado</div>
+        <div class="col-title" id="title-preparo">En Preparación</div>
+        <div class="col-subtitle" id="sub-preparo">Su pedido está siendo preparado</div>
       </div>
       <div class="col-count" id="count-preparo">0</div>
     </div>
     <div class="num-grid" id="grid-preparo">
       <div class="col-empty">
         <div class="empty-icon">🍽️</div>
-        <p id="empty-preparo">Nenhum pedido em preparo</p>
+        <p id="empty-preparo">Ningún pedido en preparación</p>
       </div>
     </div>
   </div>
@@ -380,15 +380,15 @@
     <div class="col-header">
       <div class="col-icon">✅</div>
       <div>
-        <div class="col-title" id="title-pronto">Pronto para Retirar</div>
-        <div class="col-subtitle" id="sub-pronto">Dirija-se ao balcão</div>
+        <div class="col-title" id="title-pronto">Listo para Retirar</div>
+        <div class="col-subtitle" id="sub-pronto">Diríjase al mostrador</div>
       </div>
       <div class="col-count" id="count-pronto">0</div>
     </div>
     <div class="num-grid" id="grid-pronto">
       <div class="col-empty">
         <div class="empty-icon">🎉</div>
-        <p id="empty-pronto">Nenhum pedido pronto ainda</p>
+        <p id="empty-pronto">Ningún pedido listo aún</p>
       </div>
     </div>
   </div>
@@ -397,7 +397,7 @@
 <!-- ── FOOTER ─────────────────────────────────────────── -->
 <div class="footer">
   <div class="footer-badge">📋 Turnos</div>
-  <div class="footer-msg" id="footer-aviso">Quando seu número aparecer em VERDE, dirija-se ao balcão para retirar seu pedido.</div>
+  <div class="footer-msg" id="footer-aviso">Cuando su número aparezca en VERDE, diríjase al mostrador para retirar su pedido.</div>
   <div class="footer-status">
     <div class="status-dot" id="status-dot"></div>
     <span id="status-txt">Conectado</span>
@@ -408,93 +408,93 @@
 <div class="cfg-backdrop" id="cfg-backdrop" onclick="if(event.target===this)fecharConfig()">
   <div class="cfg-panel" style="position:relative">
     <button class="cfg-close" onclick="fecharConfig()">✕</button>
-    <div class="cfg-title">⚙️ Personalizar Painel</div>
-
+    <div class="cfg-title">⚙️ Personalizar Panel</div>
+ 
     <!-- SEÇÃO: Em Preparo -->
-    <div class="cfg-section-label">🔥 Lado Esquerdo — Em Preparo</div>
-
+    <div class="cfg-section-label">🔥 Lado Izquierdo — En Preparación</div>
+ 
     <div class="cfg-group">
-      <label class="cfg-label">Fundo da coluna</label>
+      <label class="cfg-label">Fondo de la columna</label>
       <div class="cfg-row">
         <input type="color" id="cfg-bg-preparo" oninput="syncPicker(this,'cfg-bg-preparo-hex')">
         <input type="text"  id="cfg-bg-preparo-hex" maxlength="7" oninput="syncHex('cfg-bg-preparo','cfg-bg-preparo-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Cor de destaque (títulos, bordas)</label>
+      <label class="cfg-label">Color de destaque (títulos, bordes)</label>
       <div class="cfg-row">
         <input type="color" id="cfg-preparo-accent" oninput="syncPicker(this,'cfg-preparo-accent-hex')">
         <input type="text"  id="cfg-preparo-accent-hex" maxlength="7" oninput="syncHex('cfg-preparo-accent','cfg-preparo-accent-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Fundo dos cards</label>
+      <label class="cfg-label">Fondo de las tarjetas</label>
       <div class="cfg-row">
         <input type="color" id="cfg-card-bg-preparo" oninput="syncPicker(this,'cfg-card-bg-preparo-hex')">
         <input type="text"  id="cfg-card-bg-preparo-hex" maxlength="7" oninput="syncHex('cfg-card-bg-preparo','cfg-card-bg-preparo-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Texto principal dos cards (nome/#)</label>
+      <label class="cfg-label">Texto principal de las tarjetas (nombre/#)</label>
       <div class="cfg-row">
         <input type="color" id="cfg-card-text-preparo" oninput="syncPicker(this,'cfg-card-text-preparo-hex')">
         <input type="text"  id="cfg-card-text-preparo-hex" maxlength="7" oninput="syncHex('cfg-card-text-preparo','cfg-card-text-preparo-hex')">
       </div>
     </div>
-
+ 
     <!-- SEÇÃO: Pronto -->
-    <div class="cfg-section-label" style="margin-top:18px">✅ Lado Direito — Pronto</div>
-
+    <div class="cfg-section-label" style="margin-top:18px">✅ Lado Derecho — Listo</div>
+ 
     <div class="cfg-group">
-      <label class="cfg-label">Fundo da coluna</label>
+      <label class="cfg-label">Fondo de la columna</label>
       <div class="cfg-row">
         <input type="color" id="cfg-bg-pronto" oninput="syncPicker(this,'cfg-bg-pronto-hex')">
         <input type="text"  id="cfg-bg-pronto-hex" maxlength="7" oninput="syncHex('cfg-bg-pronto','cfg-bg-pronto-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Cor de destaque</label>
+      <label class="cfg-label">Color de destaque</label>
       <div class="cfg-row">
         <input type="color" id="cfg-pronto-accent" oninput="syncPicker(this,'cfg-pronto-accent-hex')">
         <input type="text"  id="cfg-pronto-accent-hex" maxlength="7" oninput="syncHex('cfg-pronto-accent','cfg-pronto-accent-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Fundo dos cards</label>
+      <label class="cfg-label">Fondo de las tarjetas</label>
       <div class="cfg-row">
         <input type="color" id="cfg-card-bg-pronto" oninput="syncPicker(this,'cfg-card-bg-pronto-hex')">
         <input type="text"  id="cfg-card-bg-pronto-hex" maxlength="7" oninput="syncHex('cfg-card-bg-pronto','cfg-card-bg-pronto-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Texto principal dos cards</label>
+      <label class="cfg-label">Texto principal de las tarjetas</label>
       <div class="cfg-row">
         <input type="color" id="cfg-card-text-pronto" oninput="syncPicker(this,'cfg-card-text-pronto-hex')">
         <input type="text"  id="cfg-card-text-pronto-hex" maxlength="7" oninput="syncHex('cfg-card-text-pronto','cfg-card-text-pronto-hex')">
       </div>
     </div>
-
+ 
     <!-- SEÇÃO: Geral -->
-    <div class="cfg-section-label" style="margin-top:18px">🖥️ Geral</div>
-
+    <div class="cfg-section-label" style="margin-top:18px">🖥️ General</div>
+ 
     <div class="cfg-group">
-      <label class="cfg-label">Fundo do cabeçalho e rodapé</label>
+      <label class="cfg-label">Fondo del encabezado y pie de página</label>
       <div class="cfg-row">
         <input type="color" id="cfg-bg-header" oninput="syncPicker(this,'cfg-bg-header-hex')">
         <input type="text"  id="cfg-bg-header-hex" maxlength="7" oninput="syncHex('cfg-bg-header','cfg-bg-header-hex')">
       </div>
     </div>
     <div class="cfg-group">
-      <label class="cfg-label">Fundo dos botões (PT / ES / ⚙️)</label>
+      <label class="cfg-label">Fondo de los botones (PT / ES / ⚙️)</label>
       <div class="cfg-row">
         <input type="color" id="cfg-btn-bg" oninput="syncPicker(this,'cfg-btn-bg-hex')">
         <input type="text"  id="cfg-btn-bg-hex" maxlength="7" oninput="syncHex('cfg-btn-bg','cfg-btn-bg-hex')">
       </div>
     </div>
-
+ 
     <div class="cfg-actions">
-      <button class="cfg-btn cfg-btn-save" onclick="salvarCores()">💾 Salvar</button>
-      <button class="cfg-btn cfg-btn-reset" onclick="resetarCores()">↩ Padrão</button>
+      <button class="cfg-btn cfg-btn-save" onclick="salvarCores()">💾 Guardar</button>
+      <button class="cfg-btn cfg-btn-reset" onclick="resetarCores()">↩ Predeterminado</button>
     </div>
   </div>
 </div>
@@ -540,7 +540,7 @@ const STRINGS = {
   },
 };
 
-let _lang = localStorage.getItem('turnos_lang') || 'pt';
+let _lang = localStorage.getItem('turnos_lang') || 'es';
 
 function setLang(l) {
   _lang = l;
@@ -568,7 +568,7 @@ function aplicarIdioma() {
 // ═══════════════════════════════════════════════
 function atualizarRelogio() {
   const agora = new Date();
-  const locale = _lang === 'es' ? 'es-PY' : 'pt-BR';
+  const locale = 'es-PY';
   document.getElementById('clock-time').textContent =
     agora.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   document.getElementById('clock-date').textContent =

@@ -317,6 +317,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 5. Carrega extras globais
     await carregarExtrasGlobais();
+
+    // 6. Controle de Assinatura (barra de aviso / tela de bloqueio)
+    // ─────────────────────────────────────────────────────────────
+    // Sem isso, a loja pública nunca sabia se a assinatura estava
+    // bloqueada — o botão "Bloquear Manualmente" em Assinaturas só
+    // afetava o painel admin.js, e a loja continuava recebendo
+    // pedidos normalmente. perfil: null porque o cliente final nunca
+    // é gestor/adminMaster (SubscriptionUI já trata null como "não
+    // gestor", exibindo a tela de bloqueio quando aplicável).
+    if (typeof SubscriptionUI !== "undefined") {
+      SubscriptionUI.inicializar({
+        supabaseUrl: typeof _SUPABASE_URL !== "undefined" ? _SUPABASE_URL : "",
+        supabaseKey: typeof _SUPABASE_KEY !== "undefined" ? _SUPABASE_KEY : "",
+        contatoFone: "595976771714",
+        contatoNome: "SuporteLinkPY",
+        perfil: null,
+      });
+    }
   } catch (e) {
     console.error("Erro ao inicializar app:", e);
   } finally {
@@ -3225,6 +3243,17 @@ function _executarGetPosition(btn, msg, boxErro) {
       }
 
       if (TABELA_FRETE && TABELA_FRETE[freteIndex] !== undefined) {
+        // Verifica se a faixa está marcada como "a combinar" no admin
+        if (TABELA_FRETE[freteIndex].acombinar === true) {
+          freteCalculado = -1; // sentinela: a combinar
+          msg.innerHTML = `<span style="color:#e67e22">⚠️ Distância: ${dist.toFixed(1)}km — Frete <strong>a combinar</strong> pelo WhatsApp.</span>`;
+          msg.style.color = "#e67e22";
+          boxErro.style.display = "none";
+          btn.innerText = "✅ Localização OK";
+          btn.disabled = false;
+          atualizarTotalCheckout();
+          return;
+        }
         freteCalculado = TABELA_FRETE[freteIndex].loja || 0;
         freteMotoboy = TABELA_FRETE[freteIndex].motoboy || 0;
       } else {

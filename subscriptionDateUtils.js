@@ -1,6 +1,17 @@
 // subscriptionDateUtils.js
 // Utilitários puros de data para controle de assinatura.
 // Sem dependências externas — apenas matemática de calendário.
+//
+// ── ALTERAÇÕES NESTA REVISÃO ─────────────────────────────────
+// 1. Novo helper calcularNovaLiberacao() — calcula a data de
+//    liberação temporária (+1 dia) usada pelo botão "Liberar +1 dia".
+// 2. calcularStatusAssinatura() ganhou o status 'liberado_manual',
+//    checado ANTES de qualquer verificação de bloqueio — ou seja,
+//    a liberação temporária tem prioridade sobre bloqueio manual
+//    E automático, exatamente como um "passe livre" deveria funcionar.
+// Requer migração SQL (rodar uma vez no Supabase):
+//   ALTER TABLE assinaturas ADD COLUMN IF NOT EXISTS liberado_ate DATE;
+//   ALTER TABLE assinaturas ADD COLUMN IF NOT EXISTS liberado_por TEXT;
 
 'use strict';
 
@@ -131,6 +142,27 @@ function calcularDataLimite(dataVencimento, diasCarencia) {
   return d;
 }
 
+/**
+ * Calcula a nova data de liberação temporária (+1 dia), usada pelo
+ * botão "Liberar +1 dia" do painel de Assinatura.
+ *
+ * Se já existir uma liberação futura em aberto (cfg.liberado_ate maior
+ * que hoje), soma +1 dia em cima dela em vez de sobrescrever com "hoje + 1"
+ * — assim cliques repetidos no botão vão acumulando dias corretamente,
+ * em vez de resetar a liberação a cada clique.
+ *
+ * @param {object} cfg          — linha da tabela assinaturas (precisa de cfg.liberado_ate)
+ * @param {Date}   hoje         — data do servidor
+ * @returns {Date}
+ */
+function calcularNovaLiberacao(cfg, hoje) {
+  const atual = cfg.liberado_ate ? new Date(cfg.liberado_ate + 'T12:00:00') : null;
+  const base  = (atual && atual > hoje) ? atual : hoje;
+  const nova  = new Date(base);
+  nova.setDate(nova.getDate() + 1);
+  return nova;
+}
+
 // ─────────────────────────────────────────────────────────────
 // 3. LÓGICA DE STATUS
 // ─────────────────────────────────────────────────────────────
@@ -167,11 +199,12 @@ function pagamentoConfirmadoNoMes(ultimoPagamentoEm, ano, mes) {
  * @param {object} cfg       — linha da tabela assinaturas
  * @param {Date}   hoje      — data do servidor
  * @returns {{
- *   status:       'em_dia'|'alerta_verde'|'alerta_amarelo'|'alerta_laranja'|'carencia'|'bloqueado',
+ *   status:       'liberado_manual'|'em_dia'|'alerta_verde'|'alerta_amarelo'|'alerta_laranja'|'carencia'|'bloqueado',
  *   diasParaVenc: number,   (negativo = já passou)
  *   diasParaBloc: number,   (só relevante em 'carencia')
  *   dataVenc:     Date,
  *   dataLimite:   Date,
+ *   liberadoAte:  Date|undefined,  (só presente quando status === 'liberado_manual')
  * }}
  */
 function calcularStatusAssinatura(cfg, hoje) {
@@ -186,11 +219,20 @@ function calcularStatusAssinatura(cfg, hoje) {
 
   const pagouEsteMes = pagamentoConfirmadoNoMes(cfg.ultimo_pagamento_em, ano, mes);
 
-  // ── Sistema nunca teve pagamento registrado (instalação nova) → não bloqueia ──
-  if (!cfg.ultimo_pagamento_em && !cfg.bloqueado) {
-    // Ainda mostra avisos de vencimento próximo, mas nunca bloqueia
-    if (diasParaVenc < 0 && diasParaBloc < 0) {
-      return { status: 'em_dia', diasParaVenc, diasParaBloc, dataVenc, dataLimite };
+  // Flag: sistema ainda não tem histórico de pagamento (instalação nova).
+  // Nunca bloqueia automaticamente, mas exibe alertas normais de vencimento.
+  // CORREÇÃO Bug 2: o bloco anterior tinha condição invertida
+  // (só entrava quando JÁ estava além da carência, retornando 'em_dia' silenciosamente).
+  const isInstalacaoNova = !cfg.ultimo_pagamento_em && !cfg.bloqueado;
+
+  // ── Liberação manual temporária ("+1 dia") — tem prioridade sobre
+  //    QUALQUER bloqueio, manual ou automático. É intencional: o botão
+  //    existe justamente para destravar o sistema imediatamente, sem
+  //    depender de confirmar pagamento nem de desbloquear de verdade.
+  if (cfg.liberado_ate) {
+    const dLib = new Date(cfg.liberado_ate + 'T23:59:59');
+    if (hoje <= dLib) {
+      return { status: 'liberado_manual', diasParaVenc, diasParaBloc, dataVenc, dataLimite, liberadoAte: dLib };
     }
   }
 
@@ -204,8 +246,8 @@ function calcularStatusAssinatura(cfg, hoje) {
     return { status: 'em_dia', diasParaVenc, diasParaBloc, dataVenc, dataLimite };
   }
 
-  // ── Ultrapassou vencimento + carência → bloqueio automático ──
-  if (diasParaBloc < 0) {
+  // ── Ultrapassou vencimento + carência → bloqueio automático (instalação nova: nunca bloqueia) ──
+  if (diasParaBloc < 0 && !isInstalacaoNova) {
     return { status: 'bloqueado', diasParaVenc, diasParaBloc, dataVenc, dataLimite };
   }
 
@@ -234,11 +276,11 @@ function calcularStatusAssinatura(cfg, hoje) {
 }
 
 /**
- * Formata uma data para exibição amigável em pt-BR.
+ * Formatea una fecha para exhibición amigable en es-PY.
  * Ex: "13/05/2025"
  */
 function formatarData(date) {
-  return date.toLocaleDateString('pt-BR', {
+  return date.toLocaleDateString('es-PY', {
     day:   '2-digit',
     month: '2-digit',
     year:  'numeric',
@@ -253,6 +295,7 @@ if (typeof window !== 'undefined') {
     calcularNthDiaUtil,
     calcularDataVencimento,
     calcularDataLimite,
+    calcularNovaLiberacao,
     calcularStatusAssinatura,
     pagamentoConfirmadoNoMes,
     diffDias,

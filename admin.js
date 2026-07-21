@@ -178,6 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     "estatisticas",
     "ficha-tecnica",
     "crm",
+    "financeiro",   // requer perfilUsuario para saber se é gestor ou funcionário
   ];
   if (
     !lastTab ||
@@ -212,7 +213,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (abaAtual === "pdv") carregarMonitorMesas();
     // if (abaAtual === 'financeiro') calcularFinanceiro();
     if (abaAtual === "dashboard") carregarDashboard();
+
   }, 10000);
+
+  if (typeof initFacturacion === 'function') {
+    // Será chamado quando a aba for aberta
+  }
 
   // Verifica Login e Permissões
   if (typeof checkUser === "function") {
@@ -282,9 +288,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       const optDono = document.getElementById("opt-cargo-dono");
       if (optDono) optDono.style.display = "";
     }
-    // Financeiro visível para todos (funcionário vê apenas o próprio caixa)
-    const menuFin = document.getElementById("menu-financeiro");
-    if (menuFin) menuFin.style.display = "flex";
+    // A visibilidade do financeiro (e todas as abas) é controlada
+    // inteiramente por _aplicarVisibilidadeAbas() via permissoes_cargo
+    // ou features_ativas.tabs. O mini-painel de caixa no PDV
+    // permite que funcionários abram o caixa sem acessar a aba financeiro.
     if (
       perfilUsuario === "dono" ||
       perfilUsuario === "gerente" ||
@@ -305,6 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "menu-ficha-tecnica",
         "menu-crm",
         "menu-mensalistas",
+        "menu-notas",
       ].forEach((id) => {
         const m = document.getElementById(id);
         if (m) m.style.display = "flex";
@@ -315,6 +323,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     carregarMotoboysSelect();
     // Re-aplica traduções após auth (perfilUsuario e features já carregados)
     if (typeof applyAdminI18n === "function") applyAdminI18n();
+
+    // ── Restaura aba restrita se era a última aba visitada ──────────
+    // (financeiro e outras abas restritas foram substituídas por dashboard
+    //  no startup — agora que perfilUsuario está definido, podemos restaurar)
+    const _savedTab = localStorage.getItem("app_lastTab");
+    const _currentTab = document.querySelector(".tab-content.active")?.id;
+    if (_savedTab && _savedTab !== _currentTab && _savedTab !== "dashboard") {
+      const _tabEl = document.getElementById(_savedTab);
+      if (_tabEl) showTab(_savedTab);
+    }
 
     // ── Controle de Assinatura (barra de aviso / bloqueio) ──
     if (typeof SubscriptionUI !== "undefined") {
@@ -372,49 +390,75 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
 });
 
-// selecionarTipo do Gemini removido — o sistema usa selecionarTipoBuilder() abaixo
-
-// =========================================
-// CLOUDINARY — UPLOAD UTILITÁRIO
-// =========================================
-const CLOUDINARY_CLOUD_NAME = "dsxwnbj0o";
-const CLOUDINARY_UPLOAD_PRESET = "ml_default";
-const CLOUDINARY_ENDPOINT = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+// ========================================
+// IMGBB UPLOAD
+// ========================================
+const IMGBB_API_KEY = "d6ade30e77d706a440f7c03f08af33c4"; // Substitua pela sua chave
 
 /**
- * Faz upload de um arquivo de imagem diretamente para o Cloudinary
- * usando um Unsigned Upload Preset público.
- *
- * @param {File} file - O objeto File selecionado pelo usuário.
- * @returns {Promise<string>} - A secure_url final da imagem no Cloudinary.
- * @throws {Error} - Lança um erro se o upload falhar, impedindo o salvamento no Supabase.
+ * Faz upload de uma imagem para o ImgBB e retorna a URL direta.
+ * @param {File} file - Arquivo de imagem
+ * @param {number} quality - Qualidade WebP (0-100), padrão 80
+ * @returns {Promise<string>} - URL da imagem
  */
-async function uploadImageToCloudinary(file) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+async function uploadImageToImgbb(file, quality = 80) {
+  // 1. Validações
+  const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!tiposPermitidos.includes(file.type)) {
+    throw new Error('Formato inválido. Use JPG, PNG, WEBP ou GIF.');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Imagem muito grande. Máximo 10MB (limite do ImgBB).');
+  }
 
-  const response = await fetch(CLOUDINARY_ENDPOINT, {
-    method: "POST",
+  // 2. Converter para WebP (comprime e reduz tamanho)
+  const webpBlob = await convertToWebP(file, quality);
+
+  // 3. Enviar para ImgBB via API
+  const formData = new FormData();
+  formData.append('key', IMGBB_API_KEY);
+  formData.append('image', webpBlob, 'image.webp'); // Envia como Blob
+  formData.append('name', file.name.replace(/\.[^.]+$/, '.webp'));
+
+  const response = await fetch('https://api.imgbb.com/1/upload', {
+    method: 'POST',
     body: formData,
   });
 
-  if (!response.ok) {
-    let errMsg = `HTTP ${response.status}`;
-    try {
-      const errData = await response.json();
-      errMsg = errData?.error?.message || errMsg;
-    } catch (_) {}
-    throw new Error(`Cloudinary upload falhou: ${errMsg}`);
-  }
-
   const data = await response.json();
-
-  if (!data.secure_url) {
-    throw new Error("Cloudinary não retornou uma URL válida.");
+  if (!data.success) {
+    throw new Error(`ImgBB: ${data.error?.message || 'Erro desconhecido'}`);
   }
 
-  return data.secure_url;
+  // Retorna a URL direta da imagem (display_url)
+  return data.data.url;
+}
+
+/**
+ * Converte um File/Blob para WebP com qualidade ajustável.
+ */
+function convertToWebP(file, quality = 80) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Falha na conversão para WebP'));
+        }, 'image/webp', quality / 100);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // =========================================
@@ -518,6 +562,9 @@ function showTab(tabId, event) {
   if (realTabId === "mensalistas") {
     initMensalistas();
   }
+  if (realTabId === "notas") {
+    notasInicializar();
+  }
   if (realTabId === "configuracoes") {
     carregarConfiguracoes();
     if (perfilUsuario === "dono" || perfilUsuario === "gerente") {
@@ -526,17 +573,19 @@ function showTab(tabId, event) {
   }
   if (realTabId === "inventario") {
     if (!perfilUsuario) return; // auth not loaded yet — wait
-    if (
-      perfilUsuario === "dono" ||
-      perfilUsuario === "gerente" ||
-      perfilUsuario === "adminMaster"
-    )
+    // Permissão via permissoes_cargo ou fallback cargo
+    const _podeInv = _feat("tabs", "inventario");
+    if (_podeInv) {
       carregarInventario();
-    else {
+    } else {
       alert("Acesso restrito.");
       showTab("pedidos", null);
     }
   }
+  if (realTabId === 'facturacion') {
+    console.log('Mostrando aba facturacion, chamando initFacturacion');
+  if (typeof initFacturacion === 'function') initFacturacion();
+}
 }
 
 const SUBTABS_VALIDAS = [
@@ -628,9 +677,31 @@ function _aplicarFormasPagamentoPDV(features) {
 
 function _feat(categoria, chave) {
   if (!FEATURES_ATIVAS) return true; // sem config = tudo ativo
+  // Permissões granulares por cargo (permissoes_cargo) têm prioridade
+  // sobre o controle global (tabs/funcionalidades)
+  if (categoria === "tabs" && perfilUsuario) {
+    const pCargo = FEATURES_ATIVAS?.permissoes_cargo?.[perfilUsuario];
+    if (pCargo && Array.isArray(pCargo.tabs)) {
+      return pCargo.tabs.includes(chave);
+    }
+  }
   const cat = FEATURES_ATIVAS[categoria];
   if (!cat) return true;
   return cat[chave] !== false;
+}
+
+/**
+ * Retorna true se o usuário logado pode cancelar pedidos diretamente
+ * (sem solicitar aprovação). Lê de features_ativas.permissoes_cargo
+ * se disponível, cai back para a lógica antiga (dono/adminMaster).
+ */
+function _podeCancelarDireto() {
+  const pCargo = FEATURES_ATIVAS?.permissoes_cargo?.[perfilUsuario];
+  if (pCargo && "pode_cancelar_direto" in pCargo) {
+    return pCargo.pode_cancelar_direto === true;
+  }
+  // fallback: lógica original
+  return ["dono", "adminMaster"].includes(perfilUsuario);
 }
 
 function _aplicarVisibilidadeAbas() {
@@ -649,12 +720,16 @@ function _aplicarVisibilidadeAbas() {
     "menu-turnos":        "turnos",
     "menu-produtos":      "produtos",
     "menu-mensalistas":   "mensalistas",
+    "menu-notas":         "notas",
   };
   // adminMaster nunca sofre restrições — ele define as regras
   if (perfilUsuario === "adminMaster") return;
+
   Object.entries(mapa).forEach(([menuId, chave]) => {
     const el = document.getElementById(menuId);
-    if (el && !_feat("tabs", chave)) el.style.display = "none";
+    if (!el) return;
+    const visivel = _feat("tabs", chave);
+    el.style.display = visivel ? "flex" : "none";
   });
   _aplicarFuncionalidades();
 }
@@ -723,11 +798,30 @@ async function salvarFeatures() {
   document.querySelectorAll("[data-feat-pag]").forEach((el) => {
     pagamentos[el.dataset.featPag] = el.checked;
   });
+
+  // ── Permissões granulares por cargo ─────────────────────────────
+  const permissoes_cargo = {};
+  const CARGOS_PERM = ["dono", "gerente", "funcionario", "garcom"];
+  const ABAS_PERM = [
+    "pedidos","cozinha","pdv","financeiro","inventario","produtos",
+    "equipe","configuracoes","dashboard","estatisticas","ficha-tecnica",
+    "crm","mensalistas","turnos",
+  ];
+  CARGOS_PERM.forEach(cargo => {
+    const tabsPermitidas = ABAS_PERM.filter(aba => {
+      const el = document.querySelector(`[data-perm-tab="${aba}"][data-perm-cargo="${cargo}"]`);
+      return el ? el.checked : true; // default: permitido
+    });
+    const podeCancel = document.querySelector(`[data-perm-cancelar][data-perm-cargo="${cargo}"]`)?.checked ?? false;
+    permissoes_cargo[cargo] = { tabs: tabsPermitidas, pode_cancelar_direto: podeCancel };
+  });
+
   const features = {
     tabs,
     tipos_produto: tipos,
     funcionalidades: funcs,
     pagamentos,
+    permissoes_cargo,
   };
   const { error } = await supa
     .from("configuracoes")
@@ -837,12 +931,79 @@ async function renderPainelFeatures() {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:7px">${grid}</div>
     </div>`;
 
+  // ── Permissões por cargo ────────────────────────────────────────────
+  const CARGOS_UI = [
+    { key: "dono",        label: "🔑 Dono",        cor: "#f59e0b" },
+    { key: "gerente",     label: "👔 Gerente",      cor: "#2980b9" },
+    { key: "funcionario", label: "👷 Funcionário",  cor: "#7f8c8d" },
+    { key: "garcom",      label: "🍽️ Garçom",      cor: "#27ae60" },
+  ];
+  const ABAS_UI = [
+    ["pedidos","📋 Pedidos"],["cozinha","👨‍🍳 Cozinha"],["pdv","🖥️ PDV"],
+    ["financeiro","💰 Financeiro"],["inventario","📦 Inventário"],["produtos","🍽️ Produtos"],
+    ["equipe","👥 Equipe"],["configuracoes","⚙️ Config"],["dashboard","📊 Dashboard"],
+    ["estatisticas","📈 Estatísticas"],["ficha-tecnica","📝 Ficha Técnica"],
+    ["crm","🤝 CRM"],["mensalistas","🗓️ Mensalistas"],["turnos","📺 Turnos"],
+  ];
+  const pCargos = f.permissoes_cargo || {};
+
+  const _chkPerm = (cargo, aba, label) => {
+    const perm = pCargos[cargo];
+    const isChecked = perm?.tabs ? perm.tabs.includes(aba) : true;
+    const cor = CARGOS_UI.find(c => c.key === cargo)?.cor || "#888";
+    return `<label style="display:flex;align-items:center;gap:5px;padding:5px 7px;
+        border-radius:7px;cursor:pointer;font-size:0.78rem;
+        background:${isChecked ? cor + "18" : "#f5f5f5"};
+        border:1.5px solid ${isChecked ? cor : "#ddd"};transition:all .15s">
+      <input type="checkbox" data-perm-tab="${aba}" data-perm-cargo="${cargo}"
+        ${isChecked ? "checked" : ""}
+        onchange="this.closest('label').style.background=this.checked?'${cor}18':'#f5f5f5';
+                  this.closest('label').style.borderColor=this.checked?'${cor}':'#ddd'"
+        style="width:14px;height:14px;accent-color:${cor};flex-shrink:0">
+      ${label}
+    </label>`;
+  };
+
+  const permSection = CARGOS_UI.map(({ key, label, cor }) => {
+    const perm = pCargos[key] || {};
+    const podeCancel = perm.pode_cancelar_direto === true;
+    const abasChk = ABAS_UI.map(([k, l]) => _chkPerm(key, k, l)).join("");
+    return `<div style="border:2px solid ${cor}44;border-radius:12px;padding:14px 16px;background:#fff">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <span style="font-weight:700;font-size:0.92rem;color:${cor}">${label}</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+            font-size:0.8rem;font-weight:600;color:#c0392b;
+            background:${podeCancel ? "#fdecea" : "#f5f5f5"};
+            border:1.5px solid ${podeCancel ? "#e74c3c" : "#ddd"};
+            border-radius:8px;padding:5px 10px;transition:all .15s">
+          <input type="checkbox" data-perm-cancelar data-perm-cargo="${key}"
+            ${podeCancel ? "checked" : ""}
+            onchange="this.closest('label').style.background=this.checked?'#fdecea':'#f5f5f5';
+                      this.closest('label').style.borderColor=this.checked?'#e74c3c':'#ddd'"
+            style="width:14px;height:14px;accent-color:#e74c3c;flex-shrink:0">
+          ❌ Pode cancelar diretamente
+        </label>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${abasChk}</div>
+    </div>`;
+  }).join("");
+
   const html = `
     <div style="display:grid;gap:14px">
-      ${_sec("📂 Abas visíveis", "Controla o menu lateral para todos os cargos abaixo de adminMaster", chkTabs)}
+      ${_sec("📂 Abas visíveis (global)", "Controla o menu para todos os cargos via regra global. As permissões por cargo abaixo têm prioridade.", chkTabs)}
       ${_sec("💳 Formas de Pagamento", "App do cliente <strong>e</strong> PDV balcão + filtro financeiro", chkPags)}
       ${_sec("🏷️ Tipos de Produto permitidos", "Quais tipos podem ser criados no cardápio", chkTipos)}
       ${_sec("⚙️ Funcionalidades", "Oculta recursos específicos da interface", chkFuncs)}
+      <div style="border:2px solid #e74c3c55;border-radius:14px;padding:16px 18px;background:#fffafa">
+        <h4 style="margin:0 0 4px;color:#c0392b;font-size:0.95rem;font-weight:800">
+          🔐 Permissões Granulares por Cargo
+        </h4>
+        <p style="font-size:0.78rem;color:#999;margin:0 0 14px">
+          Define quais abas cada cargo pode ver <strong>e</strong> se pode cancelar pedidos diretamente
+          (sem solicitar aprovação). Tem prioridade sobre a seção "Abas visíveis" acima.
+        </p>
+        <div style="display:grid;gap:12px">${permSection}</div>
+      </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="salvarFeatures()" style="flex:1;min-width:160px">
           <i class="fas fa-save"></i> Salvar Configurações
@@ -992,7 +1153,7 @@ async function carregarPedidos(silencioso = false) {
   // ───────────────────────────────────────────────────────────────────────────
 
   // Badge de cancelamento pendente para o dono / adminMaster
-  const _podeCancel = ["dono", "adminMaster"].includes(perfilUsuario);
+  const _podeCancel = _podeCancelarDireto();
   const badgeCancelPendente = _podeCancel
     ? `<span style="background:#e74c3c;color:white;font-size:0.7rem;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;">CANC. PENDENTE</span>`
     : "";
@@ -1558,6 +1719,102 @@ async function carregarCozinha() {
 // =========================================
 // 6. FINANCEIRO
 // =========================================
+// ── Helpers de classificação financeira ────────────────────────────
+// Fonte ÚNICA da verdade sobre "qual foi o método de pagamento real de um
+// pedido". Usada pelo cálculo do Financeiro E por todas as
+// exportações/relatórios (CSV, XLSX, PDF), para que os números batam entre
+// a tela e qualquer relatório exportado.
+//
+// Por que isso é necessário: pedidos.forma_pagamento NÃO reflete o método
+// real em dois casos:
+//  - Nota quitada: forma_pagamento fica sempre "NaNota"; o método real
+//    escolhido na quitação fica em forma_pagamento_quitacao.
+//  - Multipagamento: forma_pagamento fica "Multipagamento"; os métodos e
+//    valores reais de cada parte ficam em obs_pagamento (JSON).
+function finClassificarMetodo(m) {
+  const s = (m || "").toLowerCase();
+  if (s.includes("pix")) return "pix";
+  if (s.includes("transfer")) return "transf";
+  if (s.includes("cartao") || s.includes("cartão")) return "cartao";
+  if (s.includes("efetivo") || s.includes("dinheiro")) return "efetivo";
+  if (s.includes("qr")) return "qr";
+  return "outro";
+}
+
+function finEhQuitado(p) {
+  return (p.obs_pagamento || "").toLowerCase().includes("[quitado");
+}
+
+function finPartesMultipagamento(p) {
+  try {
+    const partes = JSON.parse(p.obs_pagamento || "[]");
+    return Array.isArray(partes) ? partes : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// Um pedido só é receita reconhecida quando o dinheiro já entrou de fato:
+// Nota não quitada ainda não recebeu nada, e vendas para Mensalista já
+// foram pagas antecipadamente na compra do plano (não contam de novo aqui).
+function finPedidoContaComoReceita(p) {
+  const pag = (p.forma_pagamento || "").toLowerCase();
+  if (pag === "mensalista") return false;
+  if (pag === "nanota" && !finEhQuitado(p)) return false;
+  return true;
+}
+
+// True se o pedido teve, de fato, alguma parte recebida no método-alvo.
+function finPedidoTemMetodo(p, bucketAlvo) {
+  const pag = (p.forma_pagamento || "").toLowerCase();
+  if (pag === "multipagamento") {
+    return finPartesMultipagamento(p).some((parte) => finClassificarMetodo(parte.metodo) === bucketAlvo);
+  }
+  if (pag === "nanota") {
+    if (!finEhQuitado(p)) return false;
+    return finClassificarMetodo(p.forma_pagamento_quitacao) === bucketAlvo;
+  }
+  return finClassificarMetodo(pag) === bucketAlvo;
+}
+
+// Valor do pedido atribuível a um método específico (para totalizações por
+// método em exportações). Para Multipagamento, soma só a(s) parte(s) daquele
+// método — não o pedido inteiro.
+function finValorNoMetodo(p, bucketAlvo) {
+  const pag = (p.forma_pagamento || "").toLowerCase();
+  const val = parseFloat(p.total_geral) || 0;
+  if (pag === "multipagamento") {
+    return finPartesMultipagamento(p)
+      .filter((parte) => finClassificarMetodo(parte.metodo) === bucketAlvo)
+      .reduce((a, parte) => a + (parseFloat(parte.valor) || 0), 0);
+  }
+  if (pag === "nanota") {
+    if (!finEhQuitado(p)) return 0;
+    return finClassificarMetodo(p.forma_pagamento_quitacao) === bucketAlvo ? val : 0;
+  }
+  return finClassificarMetodo(pag) === bucketAlvo ? val : 0;
+}
+
+// Texto legível da forma de pagamento efetivamente recebida — para colunas
+// de exportação/relatório (CSV, PDF), em vez do valor cru de forma_pagamento.
+function finFormaEfetivaLabel(p) {
+  const pag = (p.forma_pagamento || "").toLowerCase();
+  if (pag === "multipagamento") {
+    const partes = finPartesMultipagamento(p);
+    if (partes.length) {
+      return "Multi: " + partes.map((x) => `${x.metodo} (${Math.round(parseFloat(x.valor) || 0).toLocaleString("es-PY")})`).join(" + ");
+    }
+    return p.forma_pagamento || "";
+  }
+  if (pag === "nanota") {
+    if (finEhQuitado(p) && p.forma_pagamento_quitacao) {
+      return `${p.forma_pagamento_quitacao} (Nota quitada)`;
+    }
+    return finEhQuitado(p) ? "Na Nota (quitado, forma não registrada)" : "Na Nota (em aberto)";
+  }
+  return p.forma_pagamento || "";
+}
+
 // Estado persistente do último cálculo financeiro
 let _caixaState = {
   faturamento: 0,
@@ -1568,7 +1825,10 @@ let _caixaState = {
   totalTransf: 0,
   totalCartao: 0,
   totalEfetivo: 0,
+  totalNaNota: 0,
+  fundoAbertura: 0,
   qtdPedidos: 0,
+  qNaNota: { pix: 0, transf: 0, cartao: 0, efetivo: 0, qr: 0 },
 };
 
 // Sessão de caixa ativa (carregada ao abrir a aba financeiro)
@@ -1651,9 +1911,9 @@ async function _abrirSessaoCaixa(valorAbertura, descricao) {
   return data;
 }
 
-async function calcularFinanceiro() {
+async function calcularFinanceiro(forcar = false) {
   const abaFin = document.getElementById("financeiro");
-  if (!abaFin || !abaFin.classList.contains("active")) return;
+  if (!forcar && (!abaFin || !abaFin.classList.contains("active"))) return;
 
   const elInicio  = document.getElementById("fin-inicio");
   const elFim     = document.getElementById("fin-fim");
@@ -1667,29 +1927,38 @@ async function calcularFinanceiro() {
   // ── 1. Carrega/verifica sessão ativa ─────────────────────────────
   await _carregarSessaoCaixa();
 
-  // ── 2. Se não houver sessão aberta, exibe alerta de abertura ─────
+  // ── 2. Se não houver sessão aberta ───────────────────────────────
   if (!_sessaoCaixaAtiva) {
-    _exibirAlertaAberturaCaixa();
-    return; // não renderiza nada enquanto não houver sessão
+    if (ehGestor) {
+      if (!elInicio.value || !elFim.value) {
+        const hoje = new Date().toISOString().split("T")[0];
+        if (!elInicio.value) elInicio.value = hoje;
+        if (!elFim.value)    elFim.value    = hoje;
+      }
+    } else {
+      _exibirAlertaAberturaCaixa();
+      return;
+    }
   }
 
-  // ── 3. Define intervalo de tempo baseado na SESSÃO, não no calendário ─
-  const sessaoInicio = _sessaoCaixaAtiva.aberto_em;
-  const sessaoFim    = _sessaoCaixaAtiva.fechado_em || new Date().toISOString();
+  // ── 3. Define intervalo de tempo ──────────────────────────────────
+  const _tz = 3 * 60 * 60 * 1000; // UTC-3 PY
+  let utcI, utcF;
 
-  // Gestores podem sobrepor o intervalo com o filtro de datas da tela
-  let utcI = sessaoInicio;
-  let utcF = sessaoFim;
   if (ehGestor && elInicio.value && elFim.value) {
-    const _tz = 4 * 60 * 60 * 1000; // UTC-4 PY
     utcI = new Date(new Date(elInicio.value + "T00:00:00").getTime() + _tz).toISOString();
     utcF = new Date(new Date(elFim.value   + "T23:59:59").getTime() + _tz).toISOString();
-  } else if (!elInicio.value || !elFim.value) {
-    // Preenche os campos de data com os valores da sessão para exibição
-    const dAbr = new Date(sessaoInicio);
-    elInicio.value = dAbr.toISOString().split("T")[0];
-    const dFch = new Date(sessaoFim);
-    elFim.value    = dFch.toISOString().split("T")[0];
+  } else if (_sessaoCaixaAtiva) {
+    const sessaoInicio = _sessaoCaixaAtiva.aberto_em;
+    const sessaoFim    = _sessaoCaixaAtiva.fechado_em || new Date().toISOString();
+    utcI = sessaoInicio;
+    utcF = sessaoFim;
+    if (!elInicio.value) elInicio.value = new Date(sessaoInicio).toISOString().split("T")[0];
+    if (!elFim.value)    elFim.value    = new Date(sessaoFim).toISOString().split("T")[0];
+  } else {
+    const hoje = new Date().toISOString().split("T")[0];
+    utcI = new Date(new Date(hoje + "T00:00:00").getTime() + _tz).toISOString();
+    utcF = new Date(new Date(hoje + "T23:59:59").getTime() + _tz).toISOString();
   }
 
   const tipoFiltro    = elTipo.value;
@@ -1703,7 +1972,18 @@ async function calcularFinanceiro() {
   const _elSecMotoboys = document.getElementById("secao-motoboys-financeiro");
   if (_elSecMotoboys) _elSecMotoboys.style.display = ehGestor ? "" : "none";
 
+  // (Classificação de método de pagamento agora vem das funções globais
+  // finClassificarMetodo / finPedidoTemMetodo / finValorNoMetodo, definidas
+  // no topo da seção Financeiro — mesma lógica usada nas exportações.)
+
   // ── 4. Busca pedidos dentro da janela da sessão ───────────────────
+  // CORRIGIDO: o filtro de "Pagamento" comparava direto com a coluna
+  // forma_pagamento do pedido — que para notas quitadas continua sempre
+  // "NaNota" (a forma real fica em forma_pagamento_quitacao) e para
+  // pagamento dividido é sempre "Multipagamento". Isso fazia o filtro
+  // esconder pedidos que, na prática, tinham sido recebidos naquele método.
+  // Agora a busca traz tudo dentro do período e o filtro é aplicado com
+  // base no método efetivamente recebido.
   let query = supa
     .from("pedidos")
     .select("*, motoboys(nome)")
@@ -1711,32 +1991,39 @@ async function calcularFinanceiro() {
     .gte("created_at", utcI)
     .lte("created_at", utcF);
 
-  if (tipoFiltro !== "todos") query = query.eq("forma_pagamento", tipoFiltro);
-
-  // Funcionário: filtra apenas pedidos do próprio caixa via garcom_id (= _perfilId)
   if (!ehGestor && _perfilId) query = query.eq("garcom_id", _perfilId);
 
   const { data: pedidos } = await query;
   let peds = pedidos || [];
+
+  if (tipoFiltro !== "todos") {
+    const bucketAlvo = finClassificarMetodo(tipoFiltro);
+    peds = peds.filter((p) => finPedidoTemMetodo(p, bucketAlvo));
+  }
 
   if (facturaFiltro === "com_factura")
     peds = peds.filter((p) => p.dados_factura?.ruc || p.dados_factura?.ci);
   else if (facturaFiltro === "sem_factura")
     peds = peds.filter((p) => !p.dados_factura?.ruc && !p.dados_factura?.ci);
 
-  // ── 5. Movimentações de caixa da SESSÃO ──────────────────────────
+  // ── 5. Movimentações de caixa ─────────────────────────────────────
+  // CORRIGIDO: antes, sempre que havia uma sessão de caixa aberta, a busca
+  // ficava presa a essa sessão (sessao_id) e ignorava o período (utcI/utcF)
+  // escolhido no filtro — por isso "Filtrar por período" não trazia todas
+  // as despesas. Agora a busca usa SEMPRE o mesmo intervalo de datas
+  // aplicado aos pedidos, igual ao restante do relatório.
   let caixaQuery = supa
     .from("movimentacoes_caixa")
     .select("*")
-    .eq("sessao_id", _sessaoCaixaAtiva.id); // vínculo direto à sessão
+    .gte("created_at", utcI)
+    .lte("created_at", utcF);
   if (!ehGestor) caixaQuery = caixaQuery.eq("usuario_email", emailAtual);
+  const { data: caixaData } = await caixaQuery;
+  let caixa = caixaData || [];
 
-  const { data: caixa } = await caixaQuery;
+  if (_sessaoCaixaAtiva) _verificarBloqueioCaixa(emailAtual);
 
-  // Verifica bloqueio de caixa (sangria limite)
-  _verificarBloqueioCaixa(emailAtual);
-
-  // ── 6. Cálculos (inalterado) ──────────────────────────────────────
+  // ── 6. CÁLCULOS (CORRIGIDO) ──────────────────────────────────────
   const safeNum = (v) => {
     if (!v) return 0;
     if (typeof v === "number") return v;
@@ -1744,19 +2031,50 @@ async function calcularFinanceiro() {
   };
   const fmt = (n) => "Gs " + n.toLocaleString("es-PY");
 
-  let faturamento = 0, totalPix = 0, totalTransf = 0, totalCartao = 0, totalEfetivo = 0;
+  let faturamento = 0, totalPix = 0, totalTransf = 0, totalCartao = 0, totalEfetivo = 0, totalNaNota = 0;
+  let totalQrCelular = 0; // ← renomeie para QqMaquina se preferir
   let custoEntregas = 0, qtdPedidos = 0;
   const motoMap = {};
 
+  // Acumula, por método, quanto do total veio de uma quitação de Nota — usado
+  // só para a indicação visual "📋 inclui Gs X de Nota quitada" nos cards.
+  const qNaNota = { pix: 0, transf: 0, cartao: 0, efetivo: 0, qr: 0 };
+
   peds.forEach((p) => {
+    // ═══ PULAR: NaNota não quitado ou Mensalista (ainda não é receita) ═══
+    if (!finPedidoContaComoReceita(p)) return;
+
     const val = safeNum(p.total_geral);
     faturamento += val;
     qtdPedidos++;
+
+    // CORRIGIDO: cada balde agora vem de finValorNoMetodo, a MESMA função
+    // usada nas exportações — cobre pagamento direto, quitação de Nota
+    // (via forma_pagamento_quitacao) e cada parte de um Multipagamento.
+    // Isso garante que Dinheiro+Cartão+Pix+Transf+QR+NaNota sempre soma
+    // exatamente o faturamento, não importa a forma de pagamento.
+    const vPix     = finValorNoMetodo(p, "pix");
+    const vTransf  = finValorNoMetodo(p, "transf");
+    const vCartao  = finValorNoMetodo(p, "cartao");
+    const vEfetivo = finValorNoMetodo(p, "efetivo");
+    const vQr      = finValorNoMetodo(p, "qr");
+    totalPix += vPix; totalTransf += vTransf; totalCartao += vCartao;
+    totalEfetivo += vEfetivo; totalQrCelular += vQr;
+
+    // Sobra não classificada (ex.: multipagamento com método desconhecido,
+    // ou quitação antiga sem forma_pagamento_quitacao registrada) — cai em
+    // "Na Nota" para não desaparecer silenciosamente do relatório.
+    const restante = val - (vPix + vTransf + vCartao + vEfetivo + vQr);
+    if (restante > 0.01) totalNaNota += restante;
+
+    // Indicação visual: quanto desse pedido veio de uma Nota quitada
     const pag = (p.forma_pagamento || "").toLowerCase();
-    if (pag.includes("pix"))          totalPix    += val;
-    else if (pag.includes("transfer")) totalTransf += val;
-    else if (pag.includes("cartao") || pag.includes("cartão")) totalCartao += val;
-    else if (pag.includes("efetivo") || pag.includes("dinheiro")) totalEfetivo += val;
+    if (pag === "nanota" && finEhQuitado(p)) {
+      qNaNota.pix += vPix; qNaNota.transf += vTransf; qNaNota.cartao += vCartao;
+      qNaNota.efetivo += vEfetivo; qNaNota.qr += vQr;
+    }
+
+    // Custo entregas (somente delivery)
     if (p.tipo_entrega === "delivery") {
       const taxa = safeNum(p.frete_motoboy) || TAXA_MOTOBOY || 0;
       custoEntregas += taxa;
@@ -1773,13 +2091,17 @@ async function calcularFinanceiro() {
   let totalSaidas = 0, totalEntradas = 0, totalSangria = 0;
   (caixa || []).forEach((c) => {
     const v = safeNum(c.valor);
-    if (c.tipo === "despesa")  totalSaidas  += v;
-    if (c.tipo === "sangria")  { totalSaidas += v; totalSangria += v; }
-    if (c.tipo === "suprimento" || c.tipo === "abertura") totalEntradas += v;
+    if (c.tipo === "despesa")                                      totalSaidas  += v;
+    if (c.tipo === "sangria")                                    { totalSaidas  += v; totalSangria += v; }
+    if (c.tipo === "suprimento" || c.tipo === "abertura" || c.tipo === "entrada") totalEntradas += v;
   });
 
+  const fundoAbertura = safeNum(_sessaoCaixaAtiva?.valor_abertura);
+  totalEfetivo += fundoAbertura;
+
   _caixaState = { faturamento, custoEntregas, totalSaidas, totalEntradas,
-                  totalPix, totalTransf, totalCartao, totalEfetivo, qtdPedidos, totalSangria };
+                  totalPix, totalTransf, totalCartao, totalEfetivo, totalNaNota,
+                  totalQrCelular, qtdPedidos, totalSangria, fundoAbertura, qNaNota };
 
   const lucro = faturamento + totalEntradas - custoEntregas - totalSaidas;
   const setV  = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
@@ -1791,36 +2113,74 @@ async function calcularFinanceiro() {
   setV("total-transf",      fmt(totalTransf));
   setV("total-cartao",      fmt(totalCartao));
   setV("total-efetivo",     fmt(totalEfetivo));
+  setV("total-nanota",      fmt(totalNaNota));
+  setV("total-qr",          fmt(totalQrCelular)); // id do elemento deve ser "total-qr"
+  setV("total-fundo-abertura", fmt(fundoAbertura));
+  setV("total-sangria",     fmt(totalSangria));
   setV("card-qtd-pedidos",  qtdPedidos);
   setV("card-ticket-medio", fmt(qtdPedidos > 0 ? faturamento / qtdPedidos : 0));
+
+  // NOVO: indicação visual de quanto, em cada método, veio de uma nota quitada
+  const _mostrarOrigemNota = (badgeId, valorId, valor) => {
+    const badge = document.getElementById(badgeId);
+    if (!badge) return;
+    if (valor > 0) {
+      setV(valorId, fmt(valor));
+      badge.style.display = "";
+    } else {
+      badge.style.display = "none";
+    }
+  };
+  _mostrarOrigemNota("total-pix-nanota-label",      "total-pix-nanota",      qNaNota.pix);
+  _mostrarOrigemNota("total-transf-nanota-label",   "total-transf-nanota",   qNaNota.transf);
+  _mostrarOrigemNota("total-cartao-nanota-label",   "total-cartao-nanota",   qNaNota.cartao);
+  _mostrarOrigemNota("total-efetivo-nanota-label",  "total-efetivo-nanota",  qNaNota.efetivo);
+  _mostrarOrigemNota("total-qr-nanota-label",       "total-qr-nanota",       qNaNota.qr);
 
   // Badge do operador / info da sessão
   const badgeCaixa = document.getElementById("badge-caixa-operador");
   if (badgeCaixa) {
-    const dAbr = new Date(_sessaoCaixaAtiva.aberto_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
-    const dFch = _sessaoCaixaAtiva.fechado_em
-      ? new Date(_sessaoCaixaAtiva.fechado_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })
-      : "em aberto";
-    badgeCaixa.textContent = ehGestor
-      ? `📊 Visão geral — sessão ${_sessaoCaixaAtiva.id} (${_sessaoCaixaAtiva.usuario_email}) · ${dAbr} → ${dFch}`
-      : `💼 Seu caixa — aberto ${dAbr} → ${dFch}`;
+    if (_sessaoCaixaAtiva) {
+      const dAbr = new Date(_sessaoCaixaAtiva.aberto_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+      const dFch = _sessaoCaixaAtiva.fechado_em
+        ? new Date(_sessaoCaixaAtiva.fechado_em).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" })
+        : "em aberto";
+      badgeCaixa.textContent = ehGestor
+        ? `📊 Visão geral — sessão ${_sessaoCaixaAtiva.id} (${_sessaoCaixaAtiva.usuario_email}) · ${dAbr} → ${dFch}`
+        : `💼 Seu caixa — aberto ${dAbr} → ${dFch}`;
+    } else {
+      badgeCaixa.textContent = `📊 Visão geral — ${elInicio.value} até ${elFim.value} (sem sessão de caixa)`;
+    }
   }
 
-  // Tabelas de despesas e motoboys (código original preservado)
+  // ── Tabelas de despesas e motoboys (mantido) ──────────────────────
+  // CORRIGIDO: a sangria retirada do caixa não aparecia em nenhuma lista do
+  // relatório (só entrava, escondida, dentro do total de "Saídas"). Agora
+  // ela também aparece nesta tabela, identificada com o rótulo "💸 Sangria",
+  // para constar no relatório mesmo depois de a retirada ter sido feita.
   const tbD = document.getElementById("lista-despesas-caixa");
   if (tbD) {
-    const despesas = (caixa || []).filter((c) => c.tipo === "despesa");
+    const despesasEExtratos = (caixa || []).filter((c) => c.tipo === "despesa" || c.tipo === "sangria");
     const _DLABELS = {
       despesas_gerais:"📦 Despesas Gerais", contas_fixas:"🏠 Contas Fixas",
       pagamento_fornecedor:"🤝 Fornecedor",  pagamento_funcionario:"👷 Funcionário",
       pagamento_terceiros:"👥 Terceiros",    manutencao:"🔧 Manutenção",
       retirada:"💵 Retirada", motoboy:"🛵 Motoboy", outro:"✏️ Outro",
     };
-    if (!despesas.length) {
-      tbD.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Nenhuma despesa nesta sessão</td></tr>';
+    if (!despesasEExtratos.length) {
+      tbD.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px">Nenhuma despesa no período</td></tr>';
     } else {
-      tbD.innerHTML = despesas.map((d) => {
+      tbD.innerHTML = despesasEExtratos.map((d) => {
         const dt = new Date(d.created_at).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+        if (d.tipo === "sangria") {
+          const obs = d.descricao || "";
+          return `<tr>
+            <td style="white-space:nowrap;color:#666;font-size:0.82rem">${dt}</td>
+            <td><span style="background:#fdf0e0;color:#a9660d;padding:2px 7px;border-radius:10px;font-size:0.78rem">💸 Sangria</span></td>
+            <td style="color:#555;font-size:0.85rem">${obs}</td>
+            <td style="text-align:right;font-weight:700;color:#c0392b;white-space:nowrap">${fmt(d.valor)}</td>
+            <td style="text-align:center;white-space:nowrap;color:#aaa;font-size:0.78rem">retirada</td></tr>`;
+        }
         const tipoLabel = _DLABELS[d.tipo_despesa] || d.tipo_despesa || "—";
         const descExtra = d.tipo_despesa === "outro" && d.descricao_outro ? ` (${d.descricao_outro})` : "";
         const obs = d.descricao || "";
@@ -1837,6 +2197,20 @@ async function calcularFinanceiro() {
       }).join("");
     }
   }
+
+  // ── NOVO: filtro "Somente despesas" ────────────────────────────────
+  // Quando marcado, esconde os cards de vendas/faturamento e deixa em
+  // destaque somente a tabela de despesas (+ sangrias) do período filtrado.
+  const _elSomenteDespesas = document.getElementById("fin-somente-despesas");
+  const _somenteDespesas = !!_elSomenteDespesas?.checked;
+  const _kpiGrids = abaFin.querySelectorAll(".kpi-grid");
+  _kpiGrids.forEach((g) => {
+    const wrapCard = g.closest(".card");
+    if (wrapCard) wrapCard.style.display = _somenteDespesas ? "none" : "";
+    else g.style.display = _somenteDespesas ? "none" : "";
+  });
+  if (_elSecMotoboys) _elSecMotoboys.style.display = (_somenteDespesas || !ehGestor) ? "none" : "";
+  if (_elSecDespesas) _elSecDespesas.style.display = ehGestor ? "" : "none";
 
   const tbM = document.getElementById("lista-financeiro-motoboys");
   if (tbM) {
@@ -1860,6 +2234,13 @@ async function calcularFinanceiro() {
 }
 
 // ── Verifica bloqueio por sangria limite ───────────────────────────
+// CORRIGIDO: a versão anterior somava apenas movimentações de caixa do tipo
+// "efetivo", mas esse tipo NUNCA é gravado pelo sistema (vendas não geram
+// uma linha em movimentacoes_caixa) — então o dinheiro que efetivamente
+// entra vendendo nunca contava para o limite, e a sangria praticamente
+// nunca disparava. Agora somamos: fundo de abertura + suprimentos + vendas
+// em dinheiro do dia (inclui a fatia em dinheiro de pedidos com
+// Multipagamento) − sangrias já retiradas − despesas pagas do caixa.
 async function _verificarBloqueioCaixa(emailAtual) {
   const { data: cfg } = await supa
     .from("configuracoes")
@@ -1867,25 +2248,59 @@ async function _verificarBloqueioCaixa(emailAtual) {
     .maybeSingle();
   if (!cfg?.sangria_limite) return;
 
+  // UTC-3 PY (horario de verao permanente desde 2024)
+  const _tz = 3 * 60 * 60 * 1000;
   const hoje = new Date();
   const dStr = hoje.toISOString().split("T")[0];
+  const dIni = new Date(new Date(dStr + "T00:00:00").getTime() + _tz).toISOString();
+  const dFim = new Date(new Date(dStr + "T23:59:59").getTime() + _tz).toISOString();
+
+  const safeNum = (v) => {
+    if (!v) return 0;
+    if (typeof v === "number") return v;
+    return parseFloat(v.toString().replace(/[^\d.,-]/g, "").replace(",", ".")) || 0;
+  };
+  // Usa a mesma classificação global (finClassificarMetodo) que o Financeiro
+  // e as exportações — aqui só nos interessa se caiu no balde "efetivo".
+
+  // 1. Aberturas, suprimentos, sangrias e despesas do dia (retiradas/entradas manuais)
   const { data: movs } = await supa
     .from("movimentacoes_caixa")
     .select("tipo, valor")
     .eq("usuario_email", emailAtual)
-    .gte("created_at", dStr + " 00:00:00")
-    .lte("created_at", dStr + " 23:59:59");
+    .gte("created_at", dIni)
+    .lte("created_at", dFim);
 
   let efetivo = 0;
   (movs || []).forEach((m) => {
-    const v = parseFloat(m.valor) || 0;
-    if (
-      m.tipo === "efetivo" ||
-      m.tipo === "abertura" ||
-      m.tipo === "suprimento"
-    )
-      efetivo += v;
-    if (m.tipo === "sangria") efetivo -= v;
+    const v = safeNum(m.valor);
+    if (m.tipo === "abertura" || m.tipo === "suprimento") efetivo += v;
+    if (m.tipo === "sangria" || m.tipo === "despesa") efetivo -= v;
+  });
+
+  // 2. Vendas em dinheiro do dia (contas do próprio operador quando aplicável)
+  let pedQuery = supa
+    .from("pedidos")
+    .select("forma_pagamento, obs_pagamento, total_geral, garcom_id")
+    .in("status", ["entregue", "em_preparo", "pronto_entrega", "saiu_entrega"])
+    .gte("created_at", dIni)
+    .lte("created_at", dFim);
+  if (_perfilId) pedQuery = pedQuery.eq("garcom_id", _perfilId);
+  const { data: pedidosDia } = await pedQuery;
+
+  (pedidosDia || []).forEach((p) => {
+    const pag = (p.forma_pagamento || "").toLowerCase();
+    if (pag === "multipagamento") {
+      let partes = [];
+      try { partes = JSON.parse(p.obs_pagamento || "[]"); } catch (_) { partes = []; }
+      (Array.isArray(partes) ? partes : []).forEach((parte) => {
+        if (finClassificarMetodo(parte.metodo) === "efetivo") {
+          efetivo += safeNum(parte.valor);
+        }
+      });
+    } else if (finClassificarMetodo(pag) === "efetivo") {
+      efetivo += safeNum(p.total_geral);
+    }
   });
 
   const status = cfg.caixa_status || {};
@@ -1938,79 +2353,88 @@ async function autorizarReaberturaCaixa(emailAlvo) {
   calcularFinanceiro();
 }
 
-async function exportarFinanceiro() {
-  // 1. Pega os mesmos filtros da tela
+// ── Busca pedidos para exportação (CSV/XLSX), usando os MESMOS filtros
+// (período, forma de pagamento, factura) e a MESMA classificação de método
+// de pagamento usadas no cálculo do Financeiro — garante que o que é
+// exportado sempre bate com o que aparece na tela.
+async function _finBuscarPedidosExport() {
   const elInicio = document.getElementById("fin-inicio");
   const elFim = document.getElementById("fin-fim");
   const elTipo = document.getElementById("fin-tipo");
   const elFactura = document.getElementById("fin-factura");
 
-  const inicio = elInicio.value;
-  const fim = elFim.value;
+  const inicio = elInicio?.value;
+  const fim = elFim?.value;
   const tipoFiltro = elTipo ? elTipo.value : "todos";
   const facturaFiltro = elFactura ? elFactura.value : "todos";
 
-  // Define período
-  const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-  const dia = String(hoje.getDate()).padStart(2, "0");
+  // UTC-3 PY (horario de verao permanente desde 2024) — mesmo cálculo de
+  // período usado em calcularFinanceiro, em vez de uma string local "solta".
+  const _tz = 3 * 60 * 60 * 1000;
+  const hoje = new Date().toISOString().split("T")[0];
+  const iniStr = inicio || hoje;
+  const fimStr = fim || hoje;
+  const dataInicio = new Date(new Date(iniStr + "T00:00:00").getTime() + _tz).toISOString();
+  const dataFim    = new Date(new Date(fimStr + "T23:59:59").getTime() + _tz).toISOString();
 
-  let dataInicio, dataFim;
-  if (inicio && fim) {
-    dataInicio = inicio + " 00:00:00";
-    dataFim = fim + " 23:59:59";
-  } else {
-    dataInicio = `${ano}-${mes}-${dia} 00:00:00`;
-    dataFim = `${ano}-${mes}-${dia} 23:59:59`;
-  }
-
-  // 2. Busca os dados
-  let query = supa
+  // CORRIGIDO: usava .eq("status","entregue") só — diferente da lista de
+  // status usada na tela do Financeiro (entregue/em_preparo/pronto_entrega/
+  // saiu_entrega), fazendo o total exportado não bater com o exibido.
+  const { data: pedidos, error } = await supa
     .from("pedidos")
     .select("*")
-    .eq("status", "entregue")
+    .in("status", ["entregue", "em_preparo", "pronto_entrega", "saiu_entrega"])
     .gte("created_at", dataInicio)
     .lte("created_at", dataFim);
 
-  if (tipoFiltro !== "todos") {
-    query = query.eq("forma_pagamento", tipoFiltro);
-  }
-
-  const { data: pedidos, error } = await query;
-
   if (error) {
     alert("Erro ao buscar dados: " + error.message);
-    return;
+    return null;
   }
 
-  if (!pedidos || pedidos.length === 0) {
+  // CORRIGIDO: exportação incluía Notas em aberto (ainda não pagas) e vendas
+  // para Mensalista (já pagas na compra do plano) como se fossem receita —
+  // agora segue a mesma regra do Financeiro.
+  let peds = (pedidos || []).filter(finPedidoContaComoReceita);
+
+  // CORRIGIDO: filtrava comparando direto com forma_pagamento — não
+  // enxergava notas quitadas nem pagamentos divididos no método certo.
+  if (tipoFiltro !== "todos") {
+    const bucketAlvo = finClassificarMetodo(tipoFiltro);
+    peds = peds.filter((p) => finPedidoTemMetodo(p, bucketAlvo));
+  }
+
+  if (facturaFiltro === "com_factura") {
+    peds = peds.filter((p) => p.dados_factura?.ruc || p.dados_factura?.ci);
+  } else if (facturaFiltro === "sem_factura") {
+    peds = peds.filter((p) => !p.dados_factura?.ruc && !p.dados_factura?.ci);
+  }
+
+  return { peds, iniStr, fimStr };
+}
+
+async function exportarFinanceiro() {
+  const dados = await _finBuscarPedidosExport();
+  if (!dados) return;
+  const { peds, iniStr, fimStr } = dados;
+
+  if (!peds.length) {
     alert("Nenhum pedido encontrado no período selecionado.");
     return;
-  }
-
-  // 3. Filtra por factura se necessário
-  let pedidosFiltrados = pedidos;
-  if (facturaFiltro === "com_factura") {
-    pedidosFiltrados = pedidos.filter(
-      (p) => p.dados_factura && (p.dados_factura.ruc || p.dados_factura.ci),
-    );
-  } else if (facturaFiltro === "sem_factura") {
-    pedidosFiltrados = pedidos.filter(
-      (p) => !p.dados_factura || (!p.dados_factura.ruc && !p.dados_factura.ci),
-    );
   }
 
   // 4. Prepara dados para CSV
   let csv =
     "ID Pedido,Data/Hora,Cliente,Telefone,Tipo Entrega,Forma Pagamento,Subtotal,Frete,Total,RUC/CI,Razão Social\n";
 
-  pedidosFiltrados.forEach((p) => {
+  peds.forEach((p) => {
     const data = new Date(p.created_at).toLocaleString("pt-BR");
     const cliente = (p.cliente_nome || "").replace(/,/g, " "); // Remove vírgulas
     const telefone = p.cliente_telefone || "";
     const tipo = p.tipo_entrega || "";
-    const pagamento = p.forma_pagamento || "";
+    // CORRIGIDO: mostrava o forma_pagamento cru ("NaNota"/"Multipagamento")
+    // — agora mostra o método efetivamente recebido (ex.: "Pix (Nota quitada)").
+    const pagamento = finFormaEfetivaLabel(p).replace(/,/g, " ");
     const subtotal = p.subtotal || 0;
     const frete = p.frete_cobrado_cliente || 0;
     const total = p.total_geral || 0;
@@ -2028,7 +2452,7 @@ async function exportarFinanceiro() {
   link.setAttribute("href", url);
   link.setAttribute(
     "download",
-    `Relatorio_Financeiro_${ano}-${mes}-${dia}.csv`,
+    `Relatorio_Financeiro_${iniStr}_a_${fimStr}.csv`,
   );
   link.style.visibility = "hidden";
 
@@ -2037,15 +2461,13 @@ async function exportarFinanceiro() {
   document.body.removeChild(link);
 
   alert(
-    `✅ Relatório exportado com sucesso!\n\nTotal de pedidos: ${pedidosFiltrados.length}`,
+    `✅ Relatório exportado com sucesso!\n\nTotal de pedidos: ${peds.length}`,
   );
 }
 
 // =====================================================
 // ALTERNATIVA: EXPORTAR PARA EXCEL REAL (XLSX)
 // =====================================================
-// Se quiser usar biblioteca SheetJS para Excel verdadeiro:
-
 async function exportarFinanceiroXLSX() {
   // Aviso: Requer biblioteca SheetJS
   if (typeof XLSX === "undefined") {
@@ -2054,18 +2476,29 @@ async function exportarFinanceiroXLSX() {
     return;
   }
 
-  // Busca os dados (mesmo código acima)
-  // ... código de busca ...
+  // CORRIGIDO: esta função nunca buscava seus próprios dados — usava
+  // "pedidosFiltrados", uma variável que só existe dentro de
+  // exportarFinanceiro(), então clicar em "Exportar XLSX" sempre disparava
+  // um erro (ReferenceError) e nada era gerado. Agora busca os dados com o
+  // mesmo helper usado no CSV, garantindo os mesmos números.
+  const dados = await _finBuscarPedidosExport();
+  if (!dados) return;
+  const { peds, iniStr, fimStr } = dados;
+
+  if (!peds.length) {
+    alert("Nenhum pedido encontrado no período selecionado.");
+    return;
+  }
 
   // Cria planilha
   const ws = XLSX.utils.json_to_sheet(
-    pedidosFiltrados.map((p) => ({
+    peds.map((p) => ({
       ID: p.id,
       Data: new Date(p.created_at).toLocaleString("pt-BR"),
       Cliente: p.cliente_nome,
       Telefone: p.cliente_telefone,
       Tipo: p.tipo_entrega,
-      Pagamento: p.forma_pagamento,
+      Pagamento: finFormaEfetivaLabel(p),
       Subtotal: p.subtotal,
       Frete: p.frete_cobrado_cliente,
       Total: p.total_geral,
@@ -2077,11 +2510,7 @@ async function exportarFinanceiroXLSX() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Vendas");
 
-  const hoje = new Date();
-  XLSX.writeFile(
-    wb,
-    `Relatorio_${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}.xlsx`,
-  );
+  XLSX.writeFile(wb, `Relatorio_${iniStr}_a_${fimStr}.xlsx`);
 }
 
 // =====================================================
@@ -2110,8 +2539,6 @@ async function carregarRelatorio() {
   } else {
     const ini = filtroInicio || hoje;
     const fim = filtroFim || hoje;
-    // Paraguay UTC-4: shift local date range to UTC so after-midnight sales are captured
-    // e.g. local 00:00 PY = UTC 04:00; local 23:59 PY = UTC 03:59 next day
     const _off = 4 * 60 * 60 * 1000;
     const utcIni = new Date(
       new Date(ini + "T00:00:00").getTime() + _off,
@@ -2184,7 +2611,6 @@ async function carregarRelatorio() {
       })
       .join("<br>");
 
-    // Cancelamento info
     let cancelInfo = "";
     if (p.status === "cancelado") {
       const quem = p.cancelamento_solicitado_por || "admin";
@@ -2195,7 +2621,6 @@ async function carregarRelatorio() {
         🚫 Solicitado por: ${p.cancelamento_solicitado_por || "?"}</div>`;
     }
 
-    // Tipo badge
     const tipoBadges = {
       balcao:
         '<span style="background:#e8f4f8;color:#1a6e8a;border-radius:10px;padding:2px 7px;font-size:0.68rem;font-weight:700">🏪 PDV</span>',
@@ -2206,7 +2631,6 @@ async function carregarRelatorio() {
     };
     const tipoBadge = tipoBadges[p.tipo_entrega] || "";
 
-    // Timeline — PDV tem etapas diferentes
     const tl = isPDV
       ? [
           {
@@ -2289,6 +2713,14 @@ async function carregarRelatorio() {
       ? fmtDiff(p.tempo_recebido || p.created_at, p.tempo_entregue)
       : fmtDiff(p.tempo_recebido, p.tempo_entregue);
 
+    // 🔽 NOVA PARTE: verifica permissão e cria botão de edição
+    const podeEditar = ['gerente', 'dono', 'adminMaster'].includes(perfilUsuario);
+    const btnEditar = podeEditar
+      ? `<button class="btn btn-sm btn-primary" onclick="abrirEdicaoPedidoRelatorio(${p.id})" title="Editar pedido">
+           <i class="fas fa-pen"></i>
+         </button>`
+      : '';
+
     const _tz = { timeZone: "America/Asuncion" };
     tbody.innerHTML += `<tr style="border-bottom:1px solid #eee;vertical-align:top">
       <td style="padding:10px 8px;white-space:nowrap">
@@ -2314,11 +2746,14 @@ async function carregarRelatorio() {
         ${tlHtml}
         ${totalTime !== "-" ? `<div style="margin-top:5px;padding:3px 7px;background:#f0f4ff;border-radius:6px;font-size:0.75rem;font-weight:700;color:#3a4db7;text-align:center">⏱ ${totalTime}</div>` : ""}
       </td>
+      <td style="padding:10px 8px;text-align:center;white-space:nowrap;">
+        ${btnEditar}
+      </td>
     </tr>`;
   });
   if (!pedidos || pedidos.length === 0)
     tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;padding:40px;color:#aaa">Nenhum pedido encontrado.</td></tr>';
+      '<tr><td colspan="7" style="text-align:center;padding:40px;color:#aaa">Nenhum pedido encontrado.</td></tr>';
   const el = document.getElementById("rel-total-count");
   if (el) el.textContent = (pedidos || []).length + " pedidos encontrados";
 }
@@ -2377,7 +2812,11 @@ async function salvarMovimentacaoCaixa() {
       await _abrirSessaoCaixa(valor, desc);
       alert(`✅ Caixa aberto com fundo de Gs ${valor.toLocaleString("es-PY")}!`);
       fecharModal("modal-caixa");
-      calcularFinanceiro();
+      // Atualiza painel de caixa no PDV (caso o modal tenha sido aberto de lá)
+      if (typeof pdvCarregarPainelCaixa === "function") pdvCarregarPainelCaixa();
+      if (document.getElementById("financeiro")?.classList.contains("active")) {
+        calcularFinanceiro();
+      }
       return;
     } catch (e) {
       alert("Erro ao abrir caixa: " + e.message);
@@ -2411,71 +2850,122 @@ async function salvarMovimentacaoCaixa() {
 
 async function fecharCaixaResumo() {
   if (!_sessaoCaixaAtiva) {
-    alert("Nenhum caixa aberto para fechar.");
+    alert('Nenhum caixa aberto para fechar.');
     return;
   }
 
-  if (!confirm("Fechar o caixa desta sessão?\nIsso encerra a sessão e registra o fechamento.")) return;
+  // CORRIGIDO: "Fechar Dia" fica no painel do PDV, não na aba Financeiro.
+  // calcularFinanceiro() só recalculava quando a aba Financeiro estava
+  // visível na tela — por isso o fechamento vinha com tudo zerado. Também
+  // limpamos qualquer filtro de período deixado na aba Financeiro para
+  // garantir que o fechamento reflita exatamente a sessão de caixa atual,
+  // e não um período antigo que o gestor tenha filtrado antes.
+  const _elFinIni = document.getElementById('fin-inicio');
+  const _elFinFim = document.getElementById('fin-fim');
+  if (_elFinIni) _elFinIni.value = '';
+  if (_elFinFim) _elFinFim.value = '';
 
-  await calcularFinanceiro(); // garante que _caixaState está atualizado
-  const s   = _caixaState;
-  const fmt = (n) => "Gs " + n.toLocaleString("es-PY");
+  // Recalcula para garantir dados atualizados (forçado, mesmo fora da aba Financeiro)
+  await calcularFinanceiro(true);
+  const s = _caixaState;
+  const fmt = (n) => 'Gs ' + n.toLocaleString('es-PY');
   const lucro = s.faturamento + s.totalEntradas - s.custoEntregas - s.totalSaidas;
+  const dinheiroCaixa = s.totalEfetivo + s.totalEntradas - s.totalSaidas;
 
-  try {
-    // 1. Marca a sessão como fechada
-    await supa
-      .from("sessoes_caixa")
-      .update({
-        fechado_em:       new Date().toISOString(),
-        valor_fechamento: lucro,
-        observacao:       `Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`,
-      })
-      .eq("id", _sessaoCaixaAtiva.id);
+  // Remove modal antigo se existir
+  const oldModal = document.getElementById('modal-fechamento-caixa');
+  if (oldModal) oldModal.remove();
 
-    // 2. Registra movimentação de fechamento vinculada à sessão
-    await supa.from("movimentacoes_caixa").insert([{
-      tipo:          "fechamento",
-      valor:         lucro,
-      descricao:     `Fechamento ${new Date().toLocaleDateString("pt-BR")} | Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`,
-      usuario_email: document.getElementById("user-email")?.innerText || "admin",
-      sessao_id:     _sessaoCaixaAtiva.id,
-    }]);
-  } catch (e) {
-    console.warn("Aviso fechamento:", e.message);
-  }
+  // Cria o modal
+  const modal = document.createElement('div');
+  modal.id = 'modal-fechamento-caixa';
+  modal.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:99999;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  `;
+  modal.innerHTML = `
+    <div style="background:#fff; border-radius:20px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0; font-size:1.2rem;">📊 Fechamento de Caixa</h3>
+        <button onclick="this.closest('#modal-fechamento-caixa').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <div style="font-family:monospace; font-size:0.9rem; line-height:1.8;">
+        <div style="display:flex; justify-content:space-between;"><span>Faturamento Total:</span><strong>${fmt(s.faturamento)}</strong></div>
+        <hr>
+        <div style="font-weight:700; margin-top:6px;">💰 Por Método:</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>💵 Dinheiro:</span>${fmt(s.totalEfetivo)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>📱 Pix:</span>${fmt(s.totalPix)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>💳 Cartão:</span>${fmt(s.totalCartao)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>🏦 Transferência:</span>${fmt(s.totalTransf)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>📱 QR Celular:</span>${fmt(s.totalQrCelular || 0)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>📋 Na Nota (quitado):</span>${fmt(s.totalNaNota)}</div>
+        <hr>
+        <div style="display:flex; justify-content:space-between;"><span>📦 Pedidos:</span>${s.qtdPedidos}</div>
+        <div style="display:flex; justify-content:space-between;"><span>🏍️ Custo Entregas:</span>${fmt(s.custoEntregas)}</div>
+        <div style="display:flex; justify-content:space-between;"><span>💸 Saídas (despesas):</span>${fmt(s.totalSaidas)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px; color:#c0392b"><span>└ Sangria retirada:</span>${fmt(s.totalSangria || 0)}</div>
+        <div style="display:flex; justify-content:space-between;"><span>➕ Entradas (incl. fundo):</span>${fmt(s.totalEntradas)}</div>
+        <div style="display:flex; justify-content:space-between; padding-left:12px;"><span>└ Fundo de abertura:</span>${fmt(s.fundoAbertura)}</div>
+        <hr>
+        <div style="display:flex; justify-content:space-between; font-size:1.1rem; font-weight:800; color:#1a7a2e;"><span>💵 RESULTADO:</span>${fmt(lucro)}</div>
+        <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:700; color:#2980b9; margin-top:6px;"><span>🪙 DINHEIRO NA GAVETA:</span>${fmt(dinheiroCaixa)}</div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button onclick="window.print()" style="flex:1; padding:12px; background:#1a7a2e; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">🖨️ Imprimir</button>
+        <button onclick="fecharCaixaConfirmar()" style="flex:1; padding:12px; background:#e74c3c; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;">✅ Fechar Caixa</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
 
-  alert(`📊 FECHAMENTO DA SESSÃO #${_sessaoCaixaAtiva.id}
-═══════════════════════════
-Faturamento Total: ${fmt(s.faturamento)}
+  // Função de confirmação (será chamada pelo botão)
+  window.fecharCaixaConfirmar = async function() {
+    try {
+      await supa
+        .from('sessoes_caixa')
+        .update({
+          fechado_em: new Date().toISOString(),
+          valor_fechamento: lucro,
+          observacao: `Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`
+        })
+        .eq('id', _sessaoCaixaAtiva.id);
 
-💰 Por Método:
-  💵 Dinheiro:      ${fmt(s.totalEfetivo)}
-  📱 Pix:           ${fmt(s.totalPix)}
-  💳 Cartão:        ${fmt(s.totalCartao)}
-  🏦 Transferência: ${fmt(s.totalTransf)}
+      await registrarMovimentacaoCaixa({
+        tipo: 'fechamento',
+        valor: lucro,
+        descricao: `Fechamento ${new Date().toLocaleDateString('pt-BR')} | Fat: ${fmt(s.faturamento)} | Res: ${fmt(lucro)}`,
+        usuario_email: document.getElementById('user-email')?.innerText || 'admin',
+        sessao_id: _sessaoCaixaAtiva.id
+      });
 
-📦 Pedidos: ${s.qtdPedidos}
-🏍️ Custo Entregas: ${fmt(s.custoEntregas)}
-💸 Saídas: ${fmt(s.totalSaidas)}
-➕ Entradas: ${fmt(s.totalEntradas)}
-═══════════════════════════
-💵 RESULTADO: ${fmt(lucro)}
-═══════════════════════════
-✅ Dinheiro na gaveta: ${fmt(s.totalEfetivo)}
-Sessão encerrada!`);
+    } catch(e) {
+      console.warn('Aviso fechamento:', e.message);
+    }
 
-  // Limpa estado
-  _sessaoCaixaAtiva = null;
-  ["card-faturamento","card-custo-moto","card-lucro","total-pix","total-transf",
-   "total-cartao","total-efetivo","card-ticket-medio"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.innerText = "Gs 0";
-  });
-  const qEl = document.getElementById("card-qtd-pedidos");
-  if (qEl) qEl.innerText = "0";
-  _caixaState = { faturamento:0, custoEntregas:0, totalSaidas:0, totalEntradas:0,
-                  totalPix:0, totalTransf:0, totalCartao:0, totalEfetivo:0, qtdPedidos:0 };
+    _sessaoCaixaAtiva = null;
+    pdvCarregarPainelCaixa();
+    ['card-faturamento','card-custo-moto','card-lucro','total-pix','total-transf',
+     'total-cartao','total-efetivo','total-nanota','total-fundo-abertura','card-ticket-medio',
+     'total-qr','total-sangria'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = 'Gs 0';
+    });
+    ['total-pix-nanota-label','total-transf-nanota-label','total-cartao-nanota-label',
+     'total-efetivo-nanota-label','total-qr-nanota-label'
+    ].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const qEl = document.getElementById('card-qtd-pedidos');
+    if (qEl) qEl.innerText = '0';
+    _caixaState = { faturamento:0, custoEntregas:0, totalSaidas:0, totalEntradas:0,
+                    totalPix:0, totalTransf:0, totalCartao:0, totalEfetivo:0,
+                    totalNaNota:0, totalQrCelular:0, fundoAbertura:0, qtdPedidos:0,
+                    qNaNota: { pix:0, transf:0, cartao:0, efetivo:0, qr:0 } };
+    document.getElementById('modal-fechamento-caixa')?.remove();
+    alert('✅ Caixa fechado com sucesso!');
+  };
 }
 
 // =========================================
@@ -2486,8 +2976,12 @@ async function _buscarDadosRelatorio() {
   const elI = document.getElementById("fin-inicio");
   const elF = document.getElementById("fin-fim");
   const hoje = new Date().toISOString().split("T")[0];
-  const ini = (elI?.value || hoje) + "T00:00:00";
-  const fim = (elF?.value || hoje) + "T23:59:59";
+  // UTC-3 PY (horario de verao permanente desde 2024)
+  const _tz = 3 * 60 * 60 * 1000;
+  const iniDate = elI?.value || hoje;
+  const fimDate = elF?.value || hoje;
+  const ini = new Date(new Date(iniDate + "T00:00:00").getTime() + _tz).toISOString();
+  const fim = new Date(new Date(fimDate + "T23:59:59").getTime() + _tz).toISOString();
   const { data } = await supa
     .from("pedidos")
     .select("*")
@@ -2516,6 +3010,8 @@ async function exportarCSVPowerBI() {
     "cliente_telefone",
     "endereco_entrega",
     "forma_pagamento",
+    "forma_pagamento_efetiva", // NOVO: método realmente recebido (resolve NaNota quitado e Multipagamento)
+    "conta_como_receita",      // NOVO: false p/ Nota em aberto e vendas Mensalista (já contabilizadas na compra do plano)
     "obs_pagamento",
     "subtotal",
     "desconto_cupom",
@@ -2553,6 +3049,8 @@ async function exportarCSVPowerBI() {
       p.cliente_telefone || "",
       p.endereco_entrega || "",
       p.forma_pagamento || "",
+      finFormaEfetivaLabel(p),
+      finPedidoContaComoReceita(p),
       p.obs_pagamento || "",
       p.subtotal || 0,
       p.desconto_cupom || 0,
@@ -2592,9 +3090,20 @@ async function exportarCSVPowerBI() {
 
 // ── PDF via janela de impressão ───────────────────────────
 async function exportarPDF() {
-  const pedidos = await _buscarDadosRelatorio();
-  if (!pedidos.length) {
+  const pedidosBrutos = await _buscarDadosRelatorio();
+  if (!pedidosBrutos.length) {
     alert("Nenhum pedido no período.");
+    return;
+  }
+
+  // CORRIGIDO: incluía Notas em aberto e vendas para Mensalista como se
+  // fossem receita recebida, e classificava por método comparando direto
+  // com forma_pagamento — não reconhecia notas quitadas nem pagamento
+  // dividido, então os cards de Pix/Dinheiro/Cartão não batiam com o total
+  // faturado nem com a tela do Financeiro. Agora usa a mesma lógica.
+  const pedidos = pedidosBrutos.filter(finPedidoContaComoReceita);
+  if (!pedidos.length) {
+    alert("Nenhum pedido com receita reconhecida no período.");
     return;
   }
 
@@ -2604,20 +3113,13 @@ async function exportarPDF() {
   const periodoLabel = `${elI?.value || hoje} a ${elF?.value || hoje}`;
 
   const fmt = (n) => "Gs " + (n || 0).toLocaleString("es-PY");
-  const total = pedidos.reduce((a, p) => a + (p.total_geral || 0), 0);
-  const totalPix = pedidos
-    .filter((p) => (p.forma_pagamento || "").toLowerCase().includes("pix"))
-    .reduce((a, p) => a + (p.total_geral || 0), 0);
-  const totalEfet = pedidos
-    .filter(
-      (p) =>
-        (p.forma_pagamento || "").toLowerCase().includes("efetivo") ||
-        (p.forma_pagamento || "").toLowerCase().includes("dinheiro"),
-    )
-    .reduce((a, p) => a + (p.total_geral || 0), 0);
-  const totalCard = pedidos
-    .filter((p) => (p.forma_pagamento || "").toLowerCase().includes("cart"))
-    .reduce((a, p) => a + (p.total_geral || 0), 0);
+  const total = pedidos.reduce((a, p) => a + (parseFloat(p.total_geral) || 0), 0);
+  const somaMetodo = (bucket) => pedidos.reduce((a, p) => a + finValorNoMetodo(p, bucket), 0);
+  const totalPix    = somaMetodo("pix");
+  const totalEfet   = somaMetodo("efetivo");
+  const totalCard   = somaMetodo("cartao");
+  const totalTransf = somaMetodo("transf");
+  const totalQr     = somaMetodo("qr");
 
   const rows = pedidos
     .map((p) => {
@@ -2631,7 +3133,7 @@ async function exportarPDF() {
       <td>${hora}</td>
       <td>${p.cliente_nome || "-"}</td>
       <td>${itens || "-"}</td>
-      <td>${p.forma_pagamento || "-"}</td>
+      <td>${finFormaEfetivaLabel(p) || "-"}</td>
       <td style="text-align:right">${fmt(p.total_geral)}</td>
     </tr>`;
     })
@@ -2668,6 +3170,8 @@ async function exportarPDF() {
     <div class="card"><div class="lbl">Pix</div><div class="val">${fmt(totalPix)}</div></div>
     <div class="card"><div class="lbl">Dinheiro</div><div class="val">${fmt(totalEfet)}</div></div>
     <div class="card"><div class="lbl">Cartão</div><div class="val">${fmt(totalCard)}</div></div>
+    <div class="card"><div class="lbl">Transferência</div><div class="val">${fmt(totalTransf)}</div></div>
+    <div class="card"><div class="lbl">QR</div><div class="val">${fmt(totalQr)}</div></div>
   </div>
   <table>
     <thead><tr><th>#</th><th>Data/Hora</th><th>Cliente</th><th>Itens</th><th>Pagamento</th><th>Total</th></tr></thead>
@@ -3207,7 +3711,7 @@ async function salvarProduto() {
     if (fileInput.files.length > 0) {
       btn.innerText = "Enviando imagem...";
       try {
-        urlFinal = await uploadImageToCloudinary(fileInput.files[0]);
+        urlFinal = await uploadImageToImgbb(fileInput.files[0]);
       } catch (uploadErr) {
         alert("❌ Falha no upload da imagem: " + uploadErr.message + "\nO produto não foi salvo.");
         return;
@@ -4309,7 +4813,7 @@ async function uploadSaborImagem(fileInput, row) {
 
   try {
     // ── Upload para o Cloudinary (substitui Supabase Storage) ──
-    const url = await uploadImageToCloudinary(file);
+    const url = await uploadImageToImgbb(file);
 
     const inp =
       row.querySelector('[data-f="simg"]') ||
@@ -6504,7 +7008,7 @@ async function salvarBanner(num = 1) {
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando imagem...';
       // ── Upload para o Cloudinary (substitui Supabase Storage) ──
       try {
-        urlFinal = await uploadImageToCloudinary(file);
+        urlFinal = await uploadImageToImgbb(file);
       } catch (uploadErr) {
         alert("❌ Falha no upload do banner: " + uploadErr.message + "\nO banner não foi salvo.");
         return;
@@ -6807,7 +7311,7 @@ async function salvarPersonalizacao() {
       // ── Upload para o Cloudinary (substitui Supabase Storage) ──
       let iconeUrl;
       try {
-        iconeUrl = await uploadImageToCloudinary(iconeFile);
+        iconeUrl = await uploadImageToImgbb(iconeFile);
       } catch (uploadErr) {
         alert("❌ Falha no upload do ícone: " + uploadErr.message + "\nA personalização não foi salva.");
         return;
@@ -6857,7 +7361,7 @@ async function _uploadLogoIdentidade(input) {
 
   try {
     // ── Upload para o Cloudinary (substitui Supabase Storage) ──
-    const url = await uploadImageToCloudinary(file);
+    const url = await uploadImageToImgbb(file);
 
     // Preenche o campo de URL de texto
     const urlInput = document.getElementById("cfg-logo-url");
@@ -7396,6 +7900,90 @@ async function carregarPDV() {
   renderizarGridPDV();
   atualizarBarraMesasAtivas();
   pdvIniciarTabs();
+  // Carrega mini-painel de caixa no PDV (funciona mesmo com aba financeiro bloqueada)
+  await pdvCarregarPainelCaixa();
+}
+
+/**
+ * Mini-painel de caixa na aba PDV.
+ * Visível para todos os perfis (funcionario, gerente, dono, etc).
+ * Permite abrir o caixa sem precisar acessar a aba financeiro.
+ */
+async function pdvCarregarPainelCaixa() {
+  const container = document.getElementById("pdv-painel-caixa");
+  if (!container) return;
+
+  // Reutiliza _carregarSessaoCaixa se financeiro não foi aberto ainda
+  const ehGestor = ["dono", "gerente", "adminMaster"].includes(perfilUsuario);
+  const emailAtual = document.getElementById("user-email")?.innerText || "";
+
+  let q = supa
+    .from("sessoes_caixa")
+    .select("*")
+    .is("fechado_em", null)
+    .order("aberto_em", { ascending: false })
+    .limit(1);
+  if (!ehGestor) q = q.eq("usuario_email", emailAtual);
+
+  const { data } = await q;
+  const sessao = data?.[0] || null;
+
+  // Sincroniza com _sessaoCaixaAtiva para que salvarMovimentacaoCaixa funcione
+  _sessaoCaixaAtiva = sessao;
+
+  if (!sessao) {
+    container.innerHTML = `
+      <div style="background:#fff3cd;border:1.5px solid #f0a500;border-radius:12px;
+        padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:700;color:#7a5100;font-size:0.92rem">⚠️ Caixa não aberto</div>
+          <div style="font-size:0.8rem;color:#9a6400;margin-top:2px">
+            Abra o caixa para as vendas serem contabilizadas nesta sessão.
+          </div>
+        </div>
+        <button onclick="abrirModalCaixa('abertura')"
+          style="background:#27ae60;color:#fff;border:none;border-radius:9px;
+            padding:10px 20px;font-weight:700;cursor:pointer;font-size:0.88rem;
+            white-space:nowrap;box-shadow:0 2px 8px rgba(39,174,96,.3)">
+          <i class="fas fa-door-open"></i> Abrir Caixa
+        </button>
+      </div>`;
+  } else {
+    const dAbr = new Date(sessao.aberto_em).toLocaleString("pt-BR", {
+      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+    });
+    const podeFechar = ehGestor;
+    container.innerHTML = `
+      <div style="background:#eafaf1;border:1.5px solid #27ae60;border-radius:12px;
+        padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:700;color:#1a6b3a;font-size:0.92rem">
+            🟢 Caixa aberto desde ${dAbr}
+          </div>
+          <div style="font-size:0.8rem;color:#2e7d52;margin-top:2px">
+            Operador: ${sessao.usuario_nome || sessao.usuario_email}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="abrirModalCaixa('suprimento')"
+            style="background:#2980b9;color:#fff;border:none;border-radius:8px;
+              padding:8px 14px;font-weight:600;cursor:pointer;font-size:0.82rem">
+            <i class="fas fa-plus-circle"></i> Suprimento
+          </button>
+          <button onclick="abrirModalCaixa('sangria')"
+            style="background:#e67e22;color:#fff;border:none;border-radius:8px;
+              padding:8px 14px;font-weight:600;cursor:pointer;font-size:0.82rem">
+            <i class="fas fa-hand-holding-usd"></i> Sangria
+          </button>
+          ${podeFechar ? `
+          <button onclick="fecharCaixaResumo()"
+            style="background:#2c3e50;color:#fff;border:none;border-radius:8px;
+              padding:8px 14px;font-weight:600;cursor:pointer;font-size:0.82rem">
+            <i class="fas fa-calculator"></i> Fechar Dia
+          </button>` : ""}
+        </div>
+      </div>`;
+  }
 }
 
 let produtosCatsPDV = [];
@@ -7410,7 +7998,7 @@ function pdvSelecionarTipo(tipo, btn) {
     .forEach((b) => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
   const delivRow = document.getElementById("pdv-delivery-row");
-  if (delivRow) delivRow.style.display = tipo === "delivery" ? "" : "none";
+  if (delivRow) delivRow.style.display = tipo === "delivery" ? "block" : "none";
   atualizarCarrinhoPDV();
 }
 
@@ -9060,7 +9648,9 @@ function limparCarrinhoPDV() {
   const _set = (id, val = "") => { const el = document.getElementById(id); if (el) el.value = val; };
   _set("balcao-cliente"); _set("balcao-mesa"); _set("balcao-telefone");
   _set("balcao-endereco"); _set("balcao-geo-lat"); _set("balcao-geo-lng");
-  _set("balcao-frete"); _set("pdv-desconto-val");
+  _set("balcao-frete"); _set("pdv-desconto-val"); _set("balcao-gmaps-link");
+  const _btnAbrirGmaps = document.getElementById("btn-abrir-gmaps");
+  if (_btnAbrirGmaps) { _btnAbrirGmaps.style.display = "none"; _btnAbrirGmaps.href = "#"; }
   const descTipo = document.getElementById("pdv-desconto-tipo");
   if (descTipo) descTipo.value = "fixo";
 
@@ -9347,11 +9937,151 @@ function atualizarInfoPagPDV(total) {
       }
       atualizarRestanteMultiPDV();
     }
+  } else if (pag === "Mensalista") {
+    const box = document.getElementById("box-mensalista-pdv");
+    if (box) { box.style.display = "block"; pdvCarregarMensalistas(); }
+  } else if (pag === "NaNota") {
+    const box = document.getElementById("box-nanota-pdv");
+    if (box) { box.style.display = "block"; pdvCarregarClientesNota(); }
+  }
+
+  // Oculta boxes das outras formas ao trocar
+  if (pag !== "Mensalista") {
+    const b = document.getElementById("box-mensalista-pdv");
+    if (b) b.style.display = "none";
+  }
+  if (pag !== "NaNota") {
+    const b = document.getElementById("box-nanota-pdv");
+    if (b) b.style.display = "none";
   }
 }
 
+// ── MENSALISTA NO PDV ──────────────────────────────────────────────
+let _pdvMensalistas     = [];   // planos ativos carregados
+let _pdvMensalistaSel   = null; // plano selecionado
+
+async function pdvCarregarMensalistas() {
+  if (_pdvMensalistas.length > 0) { pdvRenderMensalistas(_pdvMensalistas); return; }
+  const { data } = await supa
+    .from('planos_mensalistas')
+    .select('id, produto_nome, quantidade_restante, valor_restante, clientes(id, nome, telefone)')
+    .eq('ativo', true)
+    .order('id');
+  _pdvMensalistas = data || [];
+  pdvRenderMensalistas(_pdvMensalistas);
+}
+
+function pdvFiltrarMensalistas() {
+  const q = document.getElementById('pdv-mens-busca')?.value.toLowerCase().trim() || '';
+  const filtrado = q ? _pdvMensalistas.filter(p =>
+    (p.clientes?.nome || '').toLowerCase().includes(q) ||
+    (p.produto_nome || '').toLowerCase().includes(q)
+  ) : _pdvMensalistas;
+  pdvRenderMensalistas(filtrado);
+}
+
+function pdvRenderMensalistas(lista) {
+  const cont = document.getElementById('pdv-mens-lista');
+  if (!cont) return;
+  if (!lista.length) { cont.innerHTML = '<div style="font-size:0.78rem;color:#aaa;text-align:center;padding:6px">Nenhum plano ativo encontrado</div>'; return; }
+  const isKg = (p) => (p.produto_nome || '').toLowerCase().includes('kg');
+  cont.innerHTML = lista.map(p => {
+    const saldo = isKg(p)
+      ? `${(p.quantidade_restante / 1000).toFixed(3).replace(/\.?0+$/, '')} kg · Gs ${Math.round(p.valor_restante || 0).toLocaleString('es-PY')}`
+      : `${p.quantidade_restante} un · Gs ${Math.round(p.valor_restante || 0).toLocaleString('es-PY')}`;
+    return `<button onclick="pdvSelecionarMensalista(${p.id})"
+      style="text-align:left;background:#f0fdf4;border:1.5px solid #86efac;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:0.78rem;width:100%">
+      <div style="font-weight:700;color:#111">${p.clientes?.nome || '—'}</div>
+      <div style="color:#15803d;font-size:0.72rem">${p.produto_nome} · ${saldo}</div>
+    </button>`;
+  }).join('');
+}
+
+function pdvSelecionarMensalista(planoId) {
+  _pdvMensalistaSel = _pdvMensalistas.find(p => p.id === planoId);
+  if (!_pdvMensalistaSel) return;
+  const p = _pdvMensalistaSel;
+  const isKg = (p.produto_nome || '').toLowerCase().includes('kg');
+  const saldo = isKg
+    ? `${(p.quantidade_restante / 1000).toFixed(3).replace(/\.?0+$/, '')} kg · Gs ${Math.round(p.valor_restante || 0).toLocaleString('es-PY')}`
+    : `${p.quantidade_restante} un · Gs ${Math.round(p.valor_restante || 0).toLocaleString('es-PY')}`;
+  document.getElementById('pdv-mens-sel-nome').textContent = p.clientes?.nome || '—';
+  document.getElementById('pdv-mens-sel-saldo').textContent = `${p.produto_nome} · Saldo: ${saldo}`;
+  document.getElementById('pdv-mens-selecionado').style.display = 'block';
+  document.getElementById('pdv-mens-lista').innerHTML = '';
+  document.getElementById('pdv-mens-busca').value = '';
+}
+
+function pdvDeselecionarMensalista() {
+  _pdvMensalistaSel = null;
+  document.getElementById('pdv-mens-selecionado').style.display = 'none';
+  pdvRenderMensalistas(_pdvMensalistas);
+}
+
+// ── COLOCAR NA NOTA (FIADO) ────────────────────────────────────────
+let _pdvClientesNota   = [];
+let _pdvClienteNotaSel = null;
+
+async function pdvCarregarClientesNota() {
+  if (_pdvClientesNota.length > 0) { pdvRenderClientesNota(_pdvClientesNota); return; }
+  const { data } = await supa.from('clientes').select('id, nome, telefone').order('nome');
+  _pdvClientesNota = data || [];
+  pdvRenderClientesNota(_pdvClientesNota);
+}
+
+function pdvFiltrarClientesNota() {
+  const q = document.getElementById('pdv-nota-busca')?.value.toLowerCase().trim() || '';
+  const filtrado = q ? _pdvClientesNota.filter(c =>
+    c.nome.toLowerCase().includes(q) || (c.telefone || '').includes(q)
+  ) : _pdvClientesNota;
+  pdvRenderClientesNota(filtrado);
+}
+
+function pdvRenderClientesNota(lista) {
+  const cont = document.getElementById('pdv-nota-lista');
+  if (!cont) return;
+  if (!lista.length) { cont.innerHTML = '<div style="font-size:0.78rem;color:#aaa;text-align:center;padding:6px">Nenhum cliente encontrado</div>'; return; }
+  cont.innerHTML = lista.map(c => `
+    <button onclick="pdvSelecionarClienteNota(${c.id})"
+      style="text-align:left;background:#faf5ff;border:1.5px solid #c4b5fd;border-radius:7px;padding:6px 9px;cursor:pointer;font-size:0.78rem;width:100%">
+      <div style="font-weight:700;color:#111">${c.nome}</div>
+      <div style="color:#7c3aed;font-size:0.72rem">${c.telefone || ''}</div>
+    </button>`).join('');
+}
+
+function pdvSelecionarClienteNota(clienteId) {
+  _pdvClienteNotaSel = _pdvClientesNota.find(c => c.id === clienteId);
+  if (!_pdvClienteNotaSel) return;
+  document.getElementById('pdv-nota-sel-nome').textContent = _pdvClienteNotaSel.nome;
+  document.getElementById('pdv-nota-sel-tel').textContent  = _pdvClienteNotaSel.telefone || '';
+  document.getElementById('pdv-nota-selecionado').style.display = 'block';
+  document.getElementById('pdv-nota-lista').innerHTML = '';
+  document.getElementById('pdv-nota-busca').value = '';
+}
+
+function pdvDeselecionarNota() {
+  _pdvClienteNotaSel = null;
+  document.getElementById('pdv-nota-selecionado').style.display = 'none';
+  pdvRenderClientesNota(_pdvClientesNota);
+}
+
+async function pdvCadastrarClienteNota() {
+  const nome = document.getElementById('pdv-nota-novo-nome')?.value.trim();
+  const tel  = document.getElementById('pdv-nota-novo-tel')?.value.trim();
+  if (!nome || !tel) { alert('Informe nome e telefone.'); return; }
+  const { data, error } = await supa.from('clientes').insert([{ nome, telefone: tel }]).select('id, nome, telefone').single();
+  if (error) { alert('Erro ao cadastrar: ' + error.message); return; }
+  _pdvClientesNota.push(data);
+  _pdvClientesNota.sort((a, b) => a.nome.localeCompare(b.nome));
+  document.getElementById('pdv-nota-novo-nome').value = '';
+  document.getElementById('pdv-nota-novo-tel').value  = '';
+  document.getElementById('pdv-nota-novo').style.display = 'none';
+  pdvSelecionarClienteNota(data.id);
+}
+
 // ── MULTIPAGAMENTO PDV ─────────────────────────────────────────────
-let _multiContadorPDV = 0;
+let _multiContadorPDV       = 0;
+let _pdvPularMovimentacao   = false;  // true para Mensalista e Na Nota
 
 function voltarPagamentoPDVUnico() {
   document.getElementById("balcao-pag").value = "Efetivo";
@@ -9473,12 +10203,41 @@ function _coletarMultiPagamentoPDV() {
 }
 
 async function salvarPedidoBalcao() {
+  // CORRIGIDO: o bloqueio por limite de sangria nunca impedia uma venda de
+  // ser finalizada — só bloqueava lançamentos manuais no caixa (suprimento/
+  // despesa). Agora nenhuma venda é concluída enquanto o caixa do operador
+  // estiver bloqueado por sangria.
+  {
+    const _emailAtualPDV = document.getElementById("user-email")?.innerText || "";
+    const { data: _cfgBloqueio } = await supa
+      .from("configuracoes")
+      .select("caixa_status")
+      .maybeSingle();
+    const _statusBloqueio = _cfgBloqueio?.caixa_status || {};
+    if (_statusBloqueio[_emailAtualPDV]?.bloqueado) {
+      alert("⛔ Caixa bloqueado por sangria. Solicite autorização de um gestor (dono/gerente) para reabrir antes de continuar vendendo.");
+      return;
+    }
+  }
+
   if (carrinhoPDV.length === 0 && !window._mesaAbertaId)
     return alert(t("alert.carrinho_vazio"));
   if (carrinhoPDV.length === 0 && window._mesaAbertaId)
     return alert("Adicione ao menos 1 novo item antes de lançar.");
 
   const _soKg = carrinhoPDV.length > 0 && carrinhoPDV.every((i) => i._isKg);
+
+  let dadosFactura = null;
+  if (document.getElementById('pdv-check-factura').checked) {
+    const ruc = document.getElementById('pdv-cli-ruc').value.trim();
+    const razao = document.getElementById('pdv-cli-razao').value.trim();
+    if (ruc || razao) {
+      dadosFactura = { ruc, razao };
+    } else {
+      // Se marcou mas não preencheu, emitimos como Consumidor Final (opcional)
+      dadosFactura = { ruc: '', razao: 'Consumidor Final' };
+    }
+  }
 
   const mesa = document.getElementById("balcao-mesa").value.trim();
   const cli =
@@ -9494,9 +10253,11 @@ async function salvarPedidoBalcao() {
 
   const nomeFinal = mesa
     ? `MESA ${mesa} - ${cli}`
-    : _soKg
-      ? `BALCÃO KG - ${cli}`
-      : `BALCÃO - ${cli}`;
+    : pag === "NaNota" && _pdvClienteNotaSel
+      ? _pdvClienteNotaSel.nome
+      : _soKg
+        ? `BALCÃO KG - ${cli}`
+        : `BALCÃO - ${cli}`;
 
   // ── Desconto manual ──────────────────────────────────────────
   const descTipo =
@@ -9536,6 +10297,24 @@ async function salvarPedidoBalcao() {
       return;
     }
     obsPagPDV = JSON.stringify(partesPDV);
+  }
+
+  // ── Validação Mensalista ──────────────────────────────────────
+  if (pag === "Mensalista") {
+    if (!_pdvMensalistaSel) { alert("Selecione um mensalista antes de finalizar."); return; }
+    const total = parseInt(document.getElementById("balcao-total")?.innerText.replace(/\D/g, "") || "0");
+    const saldoVal = Math.round(_pdvMensalistaSel.valor_restante || 0);
+    if (total > saldoVal) {
+      const ok = confirm(`⚠️ Saldo financeiro do mensalista insuficiente.\n\nSaldo: Gs ${saldoVal.toLocaleString("es-PY")}\nTotal: Gs ${total.toLocaleString("es-PY")}\n\nContinuar mesmo assim?`);
+      if (!ok) return;
+    }
+    obsPagPDV = `Mensalista: ${_pdvMensalistaSel.clientes?.nome || ""} (plano #${_pdvMensalistaSel.id})`;
+  }
+
+  // ── Validação Na Nota ─────────────────────────────────────────
+  if (pag === "NaNota") {
+    if (!_pdvClienteNotaSel) { alert("Selecione o cliente para colocar na nota."); return; }
+    obsPagPDV = `Na Nota: ${_pdvClienteNotaSel.nome} (${_pdvClienteNotaSel.telefone || ""})`;
   }
 
   // ── Novos itens ganham status_item: 'pendente' ─────────────────
@@ -9657,6 +10436,7 @@ async function salvarPedidoBalcao() {
     tempo_recebido: _agora,
     tempo_confirmado: _agora,
     tempo_preparo_iniciado: _agora,
+    dados_factura: dadosFactura,
     ...(_soKg ? { tempo_pronto: _agora, tempo_entregue: _agora } : {}),
   };
 
@@ -9672,9 +10452,57 @@ async function salvarPedidoBalcao() {
   // Descontar estoque imediatamente (PDV não passa por mudarStatus)
   if (novoPedido?.id) await _descontarEstoqueVenda(novoPedido.id, novosItens);
 
+  // ── Mensalista: desconta saldo financeiro (e kg se tiver) ─────
+  if (pag === "Mensalista" && _pdvMensalistaSel) {
+  const pm = _pdvMensalistaSel;
+  const totalVenda = subtotalLiquido; // sem frete para mensalista
+  const isKg = (pm.produto_nome || "").toLowerCase().includes("kg");
+  // Desconta valor (permite negativo)
+  const novoValorRestante = Math.round((pm.valor_restante || 0) - totalVenda);
+  // Desconta kg se o carrinho tiver item kg do plano dele
+  let novaQtdRestante = pm.quantidade_restante;
+  if (isKg) {
+    const totalGramas = novosItens.filter(i => i._isKg).reduce((s, i) => s + (i.peso_gramas || 0), 0);
+    novaQtdRestante = pm.quantidade_restante - totalGramas; // pode ficar negativo
+  } else {
+    const totalUn = novosItens.filter(i => !i._isKg).reduce((s, i) => s + (i.qtd || 1), 0);
+    novaQtdRestante = pm.quantidade_restante - totalUn; // pode ficar negativo
+  }
+  await supa.from("planos_mensalistas")
+    .update({ valor_restante: novoValorRestante, quantidade_restante: novaQtdRestante })
+    .eq("id", pm.id);
+  // Registrar entrega no histórico com itens_extras
+  const totalExtras = subtotalLiquido; // ou 0, tanto faz
+  await supa.from("mensalista_entregas").insert([{
+    plano_id: pm.id,
+    cliente_id: pm.clientes?.id || null,
+    produto_nome: pm.produto_nome,
+    quantidade: isKg
+      ? novosItens.filter(i => i._isKg).reduce((s, i) => s + (i.peso_gramas || 0), 0)
+      : novosItens.filter(i => !i._isKg).reduce((s, i) => s + (i.qtd || 1), 0),
+    observacoes: `PDV #${novoPedido.id}`,
+    itens_extras: novosItens.length > 0 ? novosItens : null,
+    valor_extras: Math.round(subtotalLiquido), // ou null
+  }]);
+  // Atualiza cache local
+  _pdvMensalistaSel.valor_restante   = novoValorRestante;
+  _pdvMensalistaSel.quantidade_restante = novaQtdRestante;
+  // Venda mensalista NÃO entra no financeiro — pula movimentacao_caixa
+  _pdvPularMovimentacao = true;
+}
+
+  // ── Na Nota: marca o pedido com cliente vinculado ─────────────
+  if (pag === "NaNota" && _pdvClienteNotaSel) {
+    await supa.from("pedidos")
+      .update({ cliente_telefone: _pdvClienteNotaSel.telefone || "" })
+      .eq("id", novoPedido.id);
+    // Na Nota também NÃO entra no financeiro como recebido
+    _pdvPularMovimentacao = true;
+  }
+
   // ── Gaveta automática ─────────────────────────────────────────────────────
   // Abre apenas no PDV, para Efetivo, Cartão (déb/créd) e Multipagamento
-  // que contenha ao menos um desses meios. PIX e similares não abrem gaveta.
+  // que contenha ao menos um desses meios. pix e similares não abrem gaveta.
   // Falha silenciosamente — venda NÃO é bloqueada se a gaveta não responder.
   if (_gavetaDeveAbrir(pag, obsPagPDV)) {
     _abrirGavetaDC335(`venda #${novoPedido?.id ?? "PDV"} — ${pag}`);
@@ -9699,7 +10527,7 @@ async function salvarPedidoBalcao() {
     const dadosImpressao = {
       id: novoPedido.id,
       cliente: { nome: nomeFinal, tel: tel },
-      entrega: { tipo: "balcao", ref: pedido.endereco_entrega },
+      entrega: { tipo: tipoEntregaPDV, ref: pedido.endereco_entrega },
       itens: novosItens.map((i) => ({
         q: i.qtd || 1,
         n: i.nome,
@@ -9764,6 +10592,19 @@ async function salvarPedidoBalcao() {
   document.getElementById("balcao-pag").style.display = "";
   const boxMultiPDV = document.getElementById("box-multi-pdv");
   if (boxMultiPDV) boxMultiPDV.style.display = "none";
+  // Reset Mensalista
+  _pdvMensalistaSel = null;
+  _pdvPularMovimentacao = false;
+  const boxMensPDV = document.getElementById("box-mensalista-pdv");
+  if (boxMensPDV) { boxMensPDV.style.display = "none"; }
+  const mensSel = document.getElementById("pdv-mens-selecionado");
+  if (mensSel) mensSel.style.display = "none";
+  // Reset Na Nota
+  _pdvClienteNotaSel = null;
+  const boxNotaPDV = document.getElementById("box-nanota-pdv");
+  if (boxNotaPDV) boxNotaPDV.style.display = "none";
+  const notaSel = document.getElementById("pdv-nota-selecionado");
+  if (notaSel) notaSel.style.display = "none";
   // Reset box efetivo / troco
   const _recEl = document.getElementById("pdv-valor-recebido");
   const _trEl  = document.getElementById("pdv-troco-row");
@@ -11485,8 +12326,12 @@ function toggleDeliveryRowPDV(tipo) {
   if (tipo !== "delivery") {
     const freteInput = document.getElementById("balcao-frete");
     const msg = document.getElementById("frete-msg-pdv");
+    const gmapsLink = document.getElementById("balcao-gmaps-link");
+    const btnAbrir = document.getElementById("btn-abrir-gmaps");
     if (freteInput) freteInput.value = "";
     if (msg) msg.innerHTML = "";
+    if (gmapsLink) gmapsLink.value = "";
+    if (btnAbrir) { btnAbrir.style.display = "none"; btnAbrir.href = "#"; }
   }
   atualizarCarrinhoPDV();
 }
@@ -11506,52 +12351,68 @@ async function obterDistanciaPelaRota(latDestino, lngDestino) {
   }
 }
 
+// ── Helper: extrai lat/lng de um link do Google Maps ─────────────────
+function _extrairCoordsGmaps(linkStr) {
+  if (!linkStr) return { lat: null, lng: null };
+  const patterns = [
+    /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+    /@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+    /\/place\/[^/@]*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+    /maps\?.*ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
+  ];
+  for (const rx of patterns) {
+    const m = linkStr.match(rx);
+    if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  }
+  return { lat: null, lng: null };
+}
+
+// ── Helper: chamado quando o usuario cola/digita no campo link gmaps ──
+function pdvOnGmapsLinkInput(val) {
+  const btnAbrir = document.getElementById("btn-abrir-gmaps");
+  const v = (val || "").trim();
+  if (!btnAbrir) return;
+  if (v.startsWith("http")) {
+    btnAbrir.href = v;
+    btnAbrir.style.display = "inline-flex";
+  } else {
+    btnAbrir.style.display = "none";
+  }
+}
+
 async function calcularFretePDV() {
   const btn = document.getElementById("btn-gps-pdv");
   const msg = document.getElementById("frete-msg-pdv");
   const freteInput = document.getElementById("balcao-frete");
 
   btn.disabled = true;
-  btn.innerText = "⏳";
+  btn.innerHTML = "⏳";
   msg.innerHTML = '<span style="color:#888">Localizando...</span>';
 
-  // ── Tenta extrair coordenadas do link colado no campo endereço ────────
+  // ── Tenta extrair coordenadas: primeiro do campo Google Maps Link,
+  //    depois do campo endereço (retro-compatibilidade)
+  const gmapsLinkVal = (
+    document.getElementById("balcao-gmaps-link")?.value || ""
+  ).trim();
   const endVal = (
     document.getElementById("balcao-endereco")?.value || ""
   ).trim();
-  let lat = null,
-    lng = null;
 
-  if (endVal) {
-    // Formatos comuns do Google Maps:
-    // https://maps.google.com/?q=-25.2867,-57.6471
-    // https://www.google.com/maps/@-25.2867,-57.6471,17z
-    // https://goo.gl/maps/... (encurtado — não parseable sem request)
-    // https://maps.app.goo.gl/... (novo encurtado)
-    // https://www.google.com/maps/place/.../@-25.2867,-57.6471,...
-    const patterns = [
-      /[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-      /@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-      /\/place\/[^/@]*\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-      /maps\?.*ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/,
-    ];
-    for (const rx of patterns) {
-      const m = endVal.match(rx);
-      if (m) {
-        lat = parseFloat(m[1]);
-        lng = parseFloat(m[2]);
-        break;
-      }
-    }
+  // Prioridade: campo gmaps-link → campo endereço (pode conter link tb)
+  let { lat, lng } = _extrairCoordsGmaps(gmapsLinkVal);
+  if (lat === null) {
+    const fromEnd = _extrairCoordsGmaps(endVal);
+    lat = fromEnd.lat;
+    lng = fromEnd.lng;
   }
 
   // ── Se não extraiu do link, usa GPS do dispositivo ────────────────────
   if (lat === null || lng === null) {
     if (!navigator.geolocation) {
       msg.innerHTML =
-        '<span style="color:#e74c3c">Cole um link do Google Maps ou use um celular com GPS</span>';
+        '<span style="color:#e74c3c">Cole um link do Google Maps no campo acima ou use um celular com GPS</span>';
       btn.disabled = false;
-      btn.innerText = "📍 Rota";
+      btn.innerHTML = "📍 Calcular";
       return;
     }
     let position;
@@ -11564,9 +12425,9 @@ async function calcularFretePDV() {
       );
     } catch {
       msg.innerHTML =
-        '<span style="color:#e74c3c">Cole um link do Google Maps no campo endereço, ou permita o GPS</span>';
+        '<span style="color:#e74c3c">Cole um link do Google Maps no campo acima, ou permita o GPS</span>';
       btn.disabled = false;
-      btn.innerText = "📍 Rota";
+      btn.innerHTML = "📍 Calcular";
       return;
     }
     lat = position.coords.latitude;
@@ -11617,7 +12478,7 @@ async function calcularFretePDV() {
     msg.innerHTML = `<span style="color:#e67e22">⚠️ ${dist.toFixed(1)}km (${nota}) — combinar frete</span>`;
     freteInput.value = "";
     btn.disabled = false;
-    btn.innerText = "📍 Rota";
+    btn.innerHTML = "📍 Calcular";
     atualizarCarrinhoPDV();
     return;
   }
@@ -11637,7 +12498,7 @@ async function calcularFretePDV() {
   const aviso = usouRota ? "" : ' <em style="color:#e67e22">(estimativa)</em>';
   msg.innerHTML = `<span style="color:#27ae60">✅ ${dist.toFixed(1)}km ${nota} → Gs ${frete.toLocaleString("es-PY")}</span>${aviso}`;
   btn.disabled = false;
-  btn.innerText = "📍 Rota";
+  btn.innerHTML = "📍 Calcular";
   atualizarCarrinhoPDV();
 }
 
@@ -12296,4 +13157,233 @@ async function admAceitarContrato() {
       btn.textContent = "✍️ ASSINAR E CONTINUAR";
     }
   }
+}
+
+/**
+ * Registra uma movimentação no caixa diretamente no banco, sem depender do modal.
+ * @param {Object} params
+ * @param {string} params.tipo - 'abertura','suprimento','sangria','despesa','entrada','fechamento'
+ * @param {number} params.valor
+ * @param {string} params.descricao
+ * @param {string} params.usuario_email - email do operador
+ * @param {number} params.sessao_id - ID da sessão de caixa ativa
+ * @param {string} params.forma_pagamento - opcional (ex: 'Efetivo', 'Cartao')
+ * @param {string} params.tipo_despesa - opcional (se for despesa)
+ * @param {string} params.descricao_outro - opcional
+ * @returns {Promise<boolean>}
+ */
+async function registrarMovimentacaoCaixa({ 
+  tipo, 
+  valor, 
+  descricao, 
+  usuario_email, 
+  sessao_id, 
+  forma_pagamento = null,
+  tipo_despesa = null,
+  descricao_outro = null
+}) {
+  if (!sessao_id) {
+    console.error('registrarMovimentacaoCaixa: sessao_id é obrigatório');
+    return false;
+  }
+  if (!valor || valor <= 0) {
+    console.error('registrarMovimentacaoCaixa: valor deve ser > 0');
+    return false;
+  }
+  if (!usuario_email) {
+    // tenta pegar do elemento da UI
+    usuario_email = document.getElementById('user-email')?.innerText || 'sistema';
+  }
+
+  const payload = {
+    tipo,
+    valor,
+    descricao: descricao || '',
+    usuario_email,
+    sessao_id,
+    forma_pagamento: forma_pagamento || null,
+    tipo_despesa: tipo_despesa || null,
+    descricao_outro: descricao_outro || null,
+    created_at: new Date().toISOString()
+  };
+
+  const { error } = await supa
+    .from('movimentacoes_caixa')
+    .insert([payload]);
+
+  if (error) {
+    console.error('Erro ao registrar movimentação:', error);
+    return false;
+  }
+  return true;
+}
+
+function pdvToggleFactura() {
+  const checked = document.getElementById('pdv-check-factura').checked;
+  const box = document.getElementById('pdv-box-ruc');
+  if (box) box.style.display = checked ? 'block' : 'none';
+}
+
+// ──────────────────────────────────────────────────────────────
+//  ABRIR MODAL DE EDIÇÃO DO PEDIDO (RELATÓRIO)
+// ──────────────────────────────────────────────────────────────
+async function abrirEdicaoPedidoRelatorio(pedidoId) {
+  // Verifica permissão (gerente, dono ou adminMaster)
+  if (!['gerente', 'dono', 'adminMaster'].includes(perfilUsuario)) {
+    alert('Acesso negado. Apenas gerentes e donos podem editar.');
+    return;
+  }
+
+  try {
+    const { data: pedido, error } = await supa
+      .from('pedidos')
+      .select('*')
+      .eq('id', pedidoId)
+      .single();
+
+    if (error || !pedido) throw error;
+
+    // Preenche cabeçalho
+    document.getElementById('edit-pedido-id').textContent = pedido.id;
+    document.getElementById('edit-pedido-cliente').textContent =
+      `👤 ${pedido.cliente_nome || 'Cliente'} · ${pedido.tipo_entrega || '—'}`;
+
+    // Preenche itens
+    const container = document.getElementById('edit-pedido-itens');
+    container.innerHTML = '';
+    const itens = pedido.itens || [];
+    let total = pedido.total_geral || 0;
+
+    itens.forEach((item, idx) => {
+      const isKg = item._isKg || item.peso_gramas > 0;
+      const qtd = item.qtd || item.q || 1;
+      const nome = item.nome || item.n || 'Item';
+      const preco = item.preco || item.p || 0;
+      const peso = item.peso_gramas || 0;
+
+      const div = document.createElement('div');
+      div.style.cssText = 'border-bottom:1px solid #f5f5f5; padding:6px 0; display:flex; align-items:center; gap:8px;';
+
+      div.innerHTML = `
+        <span style="flex:1; font-size:0.9rem;">
+          <strong>${qtd}x</strong> ${nome}
+          ${isKg ? ` <span style="color:#0891b2; font-size:0.8rem;">(kg)</span>` : ''}
+          <span style="color:#888; font-size:0.8rem; margin-left:6px;">Gs ${preco.toLocaleString('es-PY')}</span>
+        </span>
+        ${isKg ? `
+          <input type="number" id="edit-peso-${idx}" value="${peso}" min="0" step="1"
+            style="width:80px; padding:4px 6px; border:1.5px solid #0891b2; border-radius:6px; font-size:0.85rem; text-align:center;"
+            placeholder="gramas">
+          <span style="font-size:0.7rem; color:#888;">g</span>
+        ` : ''}
+      `;
+      container.appendChild(div);
+    });
+
+    // Total
+    document.getElementById('edit-pedido-total').value = total;
+
+    // Exibe modal
+    document.getElementById('modal-editar-pedido').style.display = 'flex';
+
+    // Armazena pedidoId para salvar
+    document.getElementById('modal-editar-pedido').dataset.pedidoId = pedidoId;
+
+  } catch (err) {
+    alert('Erro ao carregar pedido: ' + err.message);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+//  SALVAR EDIÇÃO DO PEDIDO
+// ──────────────────────────────────────────────────────────────
+async function salvarEdicaoPedidoRelatorio() {
+  const modal = document.getElementById('modal-editar-pedido');
+  const pedidoId = modal.dataset.pedidoId;
+  if (!pedidoId) return;
+
+  // Coleta novo total
+  const novoTotal = parseFloat(document.getElementById('edit-pedido-total').value);
+  if (isNaN(novoTotal) || novoTotal < 0) {
+    alert('Informe um total válido.');
+    return;
+  }
+
+  // Coleta novos pesos (apenas para itens kg)
+  const itensContainer = document.getElementById('edit-pedido-itens');
+  const inputsPeso = itensContainer.querySelectorAll('input[id^="edit-peso-"]');
+  const novosPesos = {};
+  inputsPeso.forEach(inp => {
+    const idx = inp.id.replace('edit-peso-', '');
+    const val = parseInt(inp.value);
+    if (!isNaN(val) && val >= 0) {
+      novosPesos[idx] = val;
+    }
+  });
+
+  // Busca pedido atual para obter itens
+  const { data: pedido, error: errFetch } = await supa
+    .from('pedidos')
+    .select('itens, subtotal, total_geral, desconto_pdv_valor, frete_cobrado_cliente, cupom_codigo')
+    .eq('id', pedidoId)
+    .single();
+
+  if (errFetch || !pedido) {
+    alert('Erro ao buscar pedido para atualização.');
+    return;
+  }
+
+  const itens = pedido.itens || [];
+  let subtotal = 0;
+
+  // Atualiza pesos e recalcula subtotal
+  const itensAtualizados = itens.map((item, idx) => {
+    const isKg = item._isKg || item.peso_gramas > 0;
+    if (isKg && novosPesos.hasOwnProperty(idx)) {
+      const novoPeso = novosPesos[idx];
+      item.peso_gramas = novoPeso;
+      // Recalcula preço do item kg (preco_kg * peso / 1000)
+      if (item.preco_kg) {
+        item.preco = Math.round((item.preco_kg * novoPeso) / 1000);
+      }
+    }
+    // Soma ao subtotal
+    const preco = item.preco || item.p || 0;
+    const qtd = item.qtd || item.q || 1;
+    subtotal += (isKg ? preco : preco * qtd);
+    return item;
+  });
+
+  // Mantém descontos e frete como estavam
+  const desconto = pedido.desconto_pdv_valor || 0;
+  const frete = pedido.frete_cobrado_cliente || 0;
+  const totalFinal = subtotal - desconto + frete;
+
+  // Atualiza pedido
+  const updateData = {
+    itens: itensAtualizados,
+    subtotal: subtotal,
+    total_geral: totalFinal,
+    // Se houver cupom, mantém o desconto (não mexe)
+  };
+
+  // Se o total editado manualmente for diferente do calculado, usamos o manual
+  if (novoTotal !== totalFinal) {
+    updateData.total_geral = novoTotal;
+  }
+
+  const { error: errUpdate } = await supa
+    .from('pedidos')
+    .update(updateData)
+    .eq('id', pedidoId);
+
+  if (errUpdate) {
+    alert('Erro ao salvar: ' + errUpdate.message);
+    return;
+  }
+
+  alert('✅ Pedido atualizado com sucesso!');
+  fecharModal('modal-editar-pedido');
+  // Recarrega o relatório para refletir as alterações
+  carregarRelatorio();
 }
